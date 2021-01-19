@@ -21,31 +21,29 @@ var backup = {
     items: [],
 
     init: function() {
-        setInterval(cleanUP, config.backup.checkDeadUploadPeriod * 1000);
+        setInterval(this.cleanUp, config.backup.checkDeadUploadPeriod * 1000);
     },
 
     cleanUp: function() {
         const now = Math.floor(Date.now() / 1000)
 
-        Object.keys(items).forEach(key => {
-            const item = items[key]
+        Object.keys(this.items).forEach(key => {
+            const item = this.items[key]
             if ((now - item.lastModificationTime) > config.backup.maxUploadTime) {
                 console.log("[backupCleanUp] Delete id:", key)
-                remove(key)
+                this.remove(key)
             }
         });
-
-        items = keepItems
     },
 
     remove: function(key) {
         if (hasKey(key)) {
-            delete items[key]
+            delete this.items[key]
         }
     },
 
     hasKey: function(key) {
-        return key in items
+        return key in this.items
     },
 
     add: function( path, size, md5, buffer ) {
@@ -62,7 +60,7 @@ var backup = {
             }
         }
 
-        items[path] = uploadInfo
+        this.items[path] = uploadInfo
         return uploadInfo
     },
 
@@ -84,7 +82,7 @@ var backup = {
             var uploadInfo
 
             if (offset > 0) {
-                uploadInfo = backup.items[path]
+                uploadInfo = this.items[path]
                 if (uploadInfo || uploadInfo.size != size || uploadInfo.md5 != md5 || uploadInfo.data.length != offset) {
                     res.sendStatus(500)
                     return
@@ -92,7 +90,7 @@ var backup = {
 
                 uploadInfo.update(block.buffer)
             } else {
-                uploadInfo = backup.add( path, size, md5, block.buffer )
+                uploadInfo = this.add( path, size, md5, block.buffer )
             }
 
             if (uploadInfo.data.length > size) {
@@ -444,7 +442,10 @@ restApp.get('/lndp/documentReadThumb', checkAuthenticateToken, (req, res) => {
 
 
 
+backup.init()
+
 console.log("Port:", config.servicePort)
+
 //restApp.listen(config.servicePort)
 https.createServer( {
     key: fs.readFileSync(config.ssl.keyFile),
