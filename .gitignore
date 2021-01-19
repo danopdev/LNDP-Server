@@ -106,3 +106,5 @@ dist
 *.pem
 package-lock.json
 config.json
+test/public
+test/backup
