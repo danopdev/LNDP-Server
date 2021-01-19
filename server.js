@@ -166,7 +166,14 @@ function checkAuthenticateToken(req, res, next) {
 }
 
 
-
+/**
+ * API: POST /backup
+ *   path: url encoded, must start with '/' and must not contains '..'
+ *   size: full path size (>= 0)
+ *   offset: block offset (>= 0)
+ *   md5: final file content md5
+ *   block: file data block
+ */
 restApp.post('/backup', checkAuthenticateToken, upload.single('block'), (req, res) => {
     backup.upload( res, decodeURI(req.body.path), parseInt(req.body.size), parseInt(req.body.offset), req.body.md5, req.file.buffer )
 })
@@ -214,6 +221,10 @@ function queryInformations( fullPaths ) {
 
 
 
+/**
+ * API: GET /lndp/queryChildDocuments
+ *   path: must start with '/' and must not contains '..'
+ */
 restApp.get('/lndp/queryChildDocuments', checkAuthenticateToken, (req, res) => {
     const path = req.query.path
 
@@ -241,6 +252,10 @@ restApp.get('/lndp/queryChildDocuments', checkAuthenticateToken, (req, res) => {
 
 
 
+/**
+ * API: GET /lndp/queryDocument
+ *   path: must start with '/' and must not contains '..'
+ */
 restApp.get('/lndp/queryDocument', checkAuthenticateToken, (req, res) => {
     const path = req.query.path
 
@@ -255,6 +270,12 @@ restApp.get('/lndp/queryDocument', checkAuthenticateToken, (req, res) => {
 
 
 
+/**
+ * API: GET /lndp/documentCreate
+ *   path: folder (must start with '/' and must not contains '..')
+ *   name: new file or directory
+ *   isdir: 0 = new file, else new directory
+ */
 restApp.get('/lndp/documentCreate', checkAuthenticateToken, (req, res) => {
     const path = req.query.path
     const name = req.query.name
@@ -300,6 +321,11 @@ restApp.get('/lndp/documentCreate', checkAuthenticateToken, (req, res) => {
 
 
 
+/**
+ * API: GET /lndp/documentRename
+ *   path: must start with '/' and must not contains '..'
+ *   newname: new file or directory name
+ */
 restApp.get('/lndp/documentRename', checkAuthenticateToken, (req, res) => {
     const path = req.query.path
     const newName = req.query.newname
@@ -335,6 +361,12 @@ restApp.get('/lndp/documentRename', checkAuthenticateToken, (req, res) => {
 
 
 
+/**
+ * API: GET /lndp/documentRead
+ *   path: must start with '/' and must not contains '..'
+ *   offset: optional (>= 0)
+ *   size: maximum read block size
+ */
 restApp.get('/lndp/documentRead', checkAuthenticateToken, (req, res) => {
     const path = req.query.path
     const offset = parseInt(req.query.offset || '0')
@@ -372,6 +404,11 @@ restApp.get('/lndp/documentRead', checkAuthenticateToken, (req, res) => {
 
 
 
+/**
+ * API: POST /lndp/documentAppend
+ *   path: must start with '/' and must not contains '..'
+ *   block: file data block
+ */
 restApp.post('/lndp/documentAppend', checkAuthenticateToken, upload.single('block'), (req, res) => {
     const path = decodeURI(req.body.path)
     const block = req.file
@@ -409,6 +446,10 @@ restApp.post('/lndp/documentAppend', checkAuthenticateToken, upload.single('bloc
 
 
 
+/**
+ * API: GET /lndp/documentReadThumb
+ *   path: must start with '/' and must not contains '..'
+ */
 restApp.get('/lndp/documentReadThumb', checkAuthenticateToken, (req, res) => {
     const path = req.query.path
 
