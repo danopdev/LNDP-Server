@@ -1,0 +1,27 @@
+{
+    "servicePort": 1972,
+    "serviceTypes": [ "lndp", "lnbs" ],
+
+    "authTokens": [ "1234" ],
+
+    "backup": {
+        "root": "~/test/backup",
+        "maxUploadTime": 120,
+        "checkDeadUploadPeriod": 60
+    },
+
+    "lndp": {
+        "root": "~/test/public"
+    },
+
+    "ssl": {
+        "keyFile": "./key.pem",
+        "certFile": "./cert.pem",
+        "passphrase": "test"
+    },
+
+    "thumb": {
+        "size": 300,
+        "quality": 75
+    }
+}
