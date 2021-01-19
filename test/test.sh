@@ -13,9 +13,8 @@ setup() {
 
 for testfile in test_*.sh; do
     setup
-    echo -ne "$testfile: "
+    echo "File: $testfile"
     bash $testfile
-    [ $? -eq 0 ] && echo " => SUCCESS" || echo " => FAILED"
 done
 
 cleanup
