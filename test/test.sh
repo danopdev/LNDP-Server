@@ -1,13 +1,13 @@
 #!/bin/bash
 
 cleanup() {
-    rm -rf public backup
+    rm -rf public backup tmp
 }
 
 
 setup() {
     cleanup
-    mkdir public backup
+    mkdir public backup tmp
 }
 
 
