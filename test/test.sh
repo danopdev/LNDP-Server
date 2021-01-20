@@ -164,7 +164,11 @@ for filename in `ls file_small.jpg_* | sort`; do
 done
 diff file_small.jpg backup/2020/a/b.bin >>tmp/test.log 2>&1 && echo " => OK" || echo " => FAILED"
 
-#avahi-browse -atpr 2>/dev/null | grep lndp | grep 3000
+echo -ne "Test: publish lndp"
+avahi-browse -atpr 2>/dev/null | grep "${HOSTNAME}_lndp" | grep 1800 >>tmp/test.log 2>&1 && echo " => OK" || echo " => FAILED"
+
+echo -ne "Test: publish lnbs"
+avahi-browse -atpr 2>/dev/null | grep "${HOSTNAME}_lnbs" | grep 1800 >>tmp/test.log 2>&1 && echo " => OK" || echo " => FAILED"
 
 #cleanup
 kill $SERVERPID
