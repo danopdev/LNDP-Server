@@ -60,6 +60,10 @@ echo -ne "Test: documentCreate /Noël/b.bin"
 curl -H "Authorization: Bearer 1234" -k "https://localhost:1800/lndp/documentCreate?path=/No%C3%ABl&name=b.bin" --output tmp/output.txt >>tmp/test.log 2>&1
 [ -f public/Noël/b.bin ] && grep -q '{"id":"/Noël/b.bin"}' tmp/output.txt && echo " => OK" || echo " => FAILED"
 
+echo -ne "Test: documentCreate /a/noël.bin"
+curl -H "Authorization: Bearer 1234" -k "https://localhost:1800/lndp/documentCreate?path=/a&name=no%C3%ABl.bin" --output tmp/output.txt >>tmp/test.log 2>&1
+[ -f public/a/noël.bin ] && grep -q '{"id":"/a/noël.bin"}' tmp/output.txt && echo " => OK" || echo " => FAILED"
+
 echo -ne "Test: documentCreate /c (dir)"
 curl -H "Authorization: Bearer 1234" -k "https://localhost:1800/lndp/documentCreate?path=/&name=c&isdir=1" --output tmp/output.txt >>tmp/test.log 2>&1
 [ -d public/c ] && grep -q '{"id":"/c"}' tmp/output.txt && echo " => OK" || echo " => FAILED"
@@ -97,6 +101,22 @@ curl -H "Authorization: Bearer 1234" -k "https://localhost:1800/lndp/documentRea
 curl -H "Authorization: Bearer 1234" -k "https://localhost:1800/lndp/documentRead?path=/file_small.jpg&offset=100000&size=100000" --output tmp/output.2.bin >>tmp/test.log 2>&1
 cat tmp/output.1.bin tmp/output.2.bin > tmp/output.bin
 diff public/file_small.jpg tmp/output.bin >>tmp/test.log 2>&1 && echo " => OK" || echo " => FAILED"
+
+echo -ne "Test: documentAppend token"
+filename=file_small.jpg_00
+filesize=`wc -c $filename | cut -f1 -d' '`
+curl -k -F "path=/a/no%C3%ABl.bin" -F "block=@$filename" "https://localhost:1800/lndp/documentAppend" --output tmp/output.txt >>tmp/test.log 2>&1
+[ -s public/a/noël.bin ] && echo " => FAILED" || echo " => OK"
+
+echo -ne "Test: documentAppend /a/noël.bin"
+fileoffset=0
+#filemd5=`md5sum file_small.jpg | cut -b-32`
+for filename in `ls file_small.jpg_* | sort`; do
+    filesize=`wc -c $filename | cut -f1 -d' '`
+    curl -H "Authorization: Bearer 1234" -k -F "path=/a/no%C3%ABl.bin" -F "block=@$filename" "https://localhost:1800/lndp/documentAppend" --output tmp/output.txt >>tmp/test.log 2>&1
+    fileoffset=$(($fileoffset + $filesize))
+done
+diff file_small.jpg public/a/noël.bin >>tmp/test.log 2>&1 && echo " => OK" || echo " => FAILED"
 
 #cleanup
 kill $SERVERPID
