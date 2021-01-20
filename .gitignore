@@ -103,7 +103,8 @@ dist
 # TernJS port file
 .tern-port
 
-*.pem
+key.pem
+cert.pem
 package-lock.json
 config.json
 test/public
