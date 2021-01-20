@@ -35,7 +35,7 @@ var backup = {
     },
 
     remove(key) {
-        if (hasKey(key)) {
+        if (this.hasKey(key)) {
             delete this.items[key]
         }
     },
@@ -46,15 +46,15 @@ var backup = {
 
     add( path, size, md5, buffer ) {
         var uploadInfo = {
-            path,
-            size,
-            md5,
+            path: path,
+            size: size,
+            md5: md5,
             data: buffer,
             lastModificationTime: Math.floor(Date.now() / 1000),
 
-            update: function( buffer ) {
-                data = Buffer.concat( [ data, buffer ] )
-                lastModificationTime = Math.floor(Date.now() / 1000)
+            update( buffer ) {
+                this.data = Buffer.concat( [ this.data, buffer ] )
+                this.lastModificationTime = Math.floor(Date.now() / 1000)
             }
         }
 
@@ -62,61 +62,62 @@ var backup = {
         return uploadInfo
     },
 
-    upload( res, path, size, offset, md5 ) {
-        if (size < 0 || offset < 0 || path.startsWith('/') || path.indexOf('..') >= 0) {
+    upload( res, path, size, offset, md5, buffer ) {
+        if (size < 0 || offset < 0 || !path.startsWith('/') || path.indexOf('..') >= 0) {
             res.sendStatus(500)
             return
         }
 
-        const fullpath = os.path.join(backupRoot, path)
+        const fullPath = joinPath(backupRoot, path)
 
-        fs.lstat(localpath, (err, stat) => {
+        fs.lstat(fullPath, (err, stat) => {
             if (!err) {
-                remove(path)
+                this.remove(path)
                 res.sendStatus(409)
                 return
             }
 
             var uploadInfo
-
             if (offset > 0) {
                 uploadInfo = this.items[path]
-                if (uploadInfo || uploadInfo.size != size || uploadInfo.md5 != md5 || uploadInfo.data.length != offset) {
+                if (!uploadInfo || uploadInfo.size != size || uploadInfo.md5 != md5 || uploadInfo.data.length != offset) {
                     res.sendStatus(500)
                     return
                 }
 
-                uploadInfo.update(block.buffer)
+                uploadInfo.update(buffer)
             } else {
-                uploadInfo = this.add( path, size, md5, block.buffer )
+                uploadInfo = this.add( path, size, md5, buffer )
             }
 
             if (uploadInfo.data.length > size) {
-                remove(path)
+                this.remove(path)
                 res.sendStatus(500)
                 return
             }
 
-            if (uploadFile.data.length < size) {
+            if (uploadInfo.data.length < size) {
                 res.sendStatus(200)
                 return
             }
 
-            remove(path)
+            this.remove(path)
 
-            const md5Buffer = md5lib(uploadFile.buffer)
+            console.log(uploadInfo)
+
+            const md5Buffer = md5lib(uploadInfo.data)
             if (md5 != md5Buffer) {
                 res.sendStatus(200)
                 return
             }
 
-            fs.mkdir(fsPath.dirname(fullpath), { recursive: true }, (err) => {
+            fs.mkdir(fsPath.dirname(fullPath), { recursive: true }, (err) => {
                 if (err) {
                     res.sendStatus(500)
                     return
                 }
 
-                fs.writeFile(fullPath, uploadFile.data, "binary", (err) => {
+                fs.writeFile(fullPath, uploadInfo.data, "binary", (err) => {
                     if (err) {
                         res.send(500)
                     } else {
