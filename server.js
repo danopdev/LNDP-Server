@@ -62,7 +62,7 @@ var backup = {
         return uploadInfo
     },
 
-    upload: function( res, path, size, offset, md5 ) {
+    upload( res, path, size, offset, md5 ) {
         if (size < 0 || offset < 0 || path.startsWith('/') || path.indexOf('..') >= 0) {
             res.sendStatus(500)
             return
@@ -335,7 +335,7 @@ restApp.get('/lndp/documentRename', checkAuthenticateToken, (req, res) => {
 
     const fullPath = joinPath(lndpRoot, path)
     fs.lstat(fullPath, (err, stat) => {
-        if (!err) {
+        if (err) {
             res.sendStatus(500)
             return
         }
@@ -347,12 +347,13 @@ restApp.get('/lndp/documentRename', checkAuthenticateToken, (req, res) => {
         if (fullPath === fullNewPath) {
             res.send({'id': path})
         } else {
-            try {
-                fs.rename(fullPath, fullNewPath)
-                res.send({'id': newPath})
-            } catch(e) {
-                res.sendStatus(500)
-            }
+            fs.rename(fullPath, fullNewPath, (err) => {
+                if (err) {
+                    res.sendStatus(500)
+                } else {
+                    res.send({'id': newPath})
+                }
+            })
         }
     })
 })
