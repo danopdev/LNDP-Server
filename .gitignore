@@ -109,3 +109,4 @@ package-lock.json
 config.json
 test/public
 test/backup
+test/tmp
