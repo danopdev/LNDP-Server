@@ -392,7 +392,7 @@ restApp.get('/lndp/documentRead', checkAuthenticateToken, (req, res) => {
                         fs.close(fd, () => {})
                         if (readSize >= 0) {
                             res.setHeader('Content-type', 'application/octet-stream')
-                            res.send(Buffer.from(buffer, 0, readSize))
+                            res.send(buffer.slice(0, readSize))
                         }
                     })
                 }
