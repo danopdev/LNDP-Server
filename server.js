@@ -7,7 +7,7 @@ const fsPath = require('path')
 const sharp = require('sharp')
 const md5lib = require('md5')
 const mimeTypes = require('mime-types')
-
+const bonjour = require('bonjour')()
 
 
 const upload = multer({ storage: multer.memoryStorage() })
@@ -486,6 +486,20 @@ restApp.get('/lndp/documentReadThumb', checkAuthenticateToken, (req, res) => {
 const config = require(process.argv[2] || "./config.json")
 const lndpRoot = config.lndp.root.replace("~", os.homedir)
 const backupRoot = config.backup.root.replace("~", os.homedir)
+
+config.serviceTypes.forEach((serviceType) => {
+    bonjour.publish({
+        name: os.hostname(),
+        type: serviceType,
+        port: config.servicePort
+    })
+});
+
+process.on('SIGINT', function() {
+    console.log("Caught interrupt signal")
+    bonjour.unpublishAll()
+    process.exit()
+});
 
 backup.init()
 
