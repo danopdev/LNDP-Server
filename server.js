@@ -488,8 +488,9 @@ const lndpRoot = config.lndp.root.replace("~", os.homedir)
 const backupRoot = config.backup.root.replace("~", os.homedir)
 
 config.serviceTypes.forEach((serviceType) => {
+    console.log("Publish:", serviceType)
     bonjour.publish({
-        name: os.hostname(),
+        name: os.hostname() + "_" + serviceType,
         type: serviceType,
         port: config.servicePort
     })
