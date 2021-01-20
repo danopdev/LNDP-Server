@@ -1,20 +1,16 @@
 #!/bin/bash
 
-cleanup() {
-    rm -rf public backup tmp
-}
+#setup
+rm -rf public backup tmp
+mkdir public backup tmp
+
+cd ..
+node server.js ./test/config-test.json &
+SERVERPID=$!
+sleep 5
+cd test
 
 
-setup() {
-    cleanup
-    mkdir public backup tmp
-}
-
-
-for testfile in test_*.sh; do
-    setup
-    echo "File: $testfile"
-    bash $testfile
-done
-
-cleanup
+#cleanup
+kill $SERVERPID
+rm -rf public backup tmp
