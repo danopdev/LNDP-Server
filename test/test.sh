@@ -164,6 +164,8 @@ for filename in `ls file_small.jpg_* | sort`; do
 done
 diff file_small.jpg backup/2020/a/b.bin >>tmp/test.log 2>&1 && echo " => OK" || echo " => FAILED"
 
+#avahi-browse -atpr 2>/dev/null | grep lndp | grep 3000
+
 #cleanup
 kill $SERVERPID
 #rm -rf public backup tmp
