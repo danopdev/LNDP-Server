@@ -18,11 +18,11 @@ const restApp = express()
 var backup = {
     items: [],
 
-    init: function() {
-        setInterval(this.cleanUp, config.backup.checkDeadUploadPeriod * 1000);
+    init() {
+        setInterval(this.cleanUp.bind(this), config.backup.checkDeadUploadPeriod * 1000);
     },
 
-    cleanUp: function() {
+    cleanUp() {
         const now = Math.floor(Date.now() / 1000)
 
         Object.keys(this.items).forEach(key => {
@@ -34,17 +34,17 @@ var backup = {
         });
     },
 
-    remove: function(key) {
+    remove(key) {
         if (hasKey(key)) {
             delete this.items[key]
         }
     },
 
-    hasKey: function(key) {
+    hasKey(key) {
         return key in this.items
     },
 
-    add: function( path, size, md5, buffer ) {
+    add( path, size, md5, buffer ) {
         var uploadInfo = {
             path,
             size,
