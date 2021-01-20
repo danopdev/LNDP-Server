@@ -8,9 +8,7 @@ const sharp = require('sharp')
 const md5lib = require('md5')
 const mimeTypes = require('mime-types')
 
-const config = require("./config.json")
-const lndpRoot = config.lndp.root.replace("~", os.homedir)
-const backupRoot = config.backup.root.replace("~", os.homedir)
+
 
 const upload = multer({ storage: multer.memoryStorage() })
 const restApp = express()
@@ -482,6 +480,10 @@ restApp.get('/lndp/documentReadThumb', checkAuthenticateToken, (req, res) => {
 })
 
 
+
+const config = require(process.argv[2] || "./config.json")
+const lndpRoot = config.lndp.root.replace("~", os.homedir)
+const backupRoot = config.backup.root.replace("~", os.homedir)
 
 backup.init()
 
