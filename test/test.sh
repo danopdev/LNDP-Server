@@ -118,6 +118,19 @@ for filename in `ls file_small.jpg_* | sort`; do
 done
 diff file_small.jpg public/a/noël.bin >>tmp/test.log 2>&1 && echo " => OK" || echo " => FAILED"
 
+echo -ne "Test: documentReadThumb token"
+curl -k "https://localhost:1800/lndp/documentReadThumb?path=/file_small.jpg" --output tmp/output.bin >>tmp/test.log 2>&1
+[ -s tmp/output.bin ] && echo " => FAILED" || echo " => OK"
+
+echo -ne "Test: documentReadThumb file_small.bin"
+curl -H "Authorization: Bearer 1234" -k "https://localhost:1800/lndp/documentReadThumb?path=/file_small.bin" --output tmp/output.txt >>tmp/test.log 2>&1
+grep -q 'Internal Server Error' tmp/output.txt && echo " => OK" || echo " => FAILED"
+
+echo -ne "Test: documentReadThumb file_small.jpg"
+curl -H "Authorization: Bearer 1234" -k "https://localhost:1800/lndp/documentReadThumb?path=/file_small.jpg" --output tmp/output.bin >>tmp/test.log 2>&1
+file tmp/output.bin >tmp/output.txt 2>&1
+[ -s tmp/output.bin ] && grep -q 'JPEG' tmp/output.txt && echo " => OK" || echo " => FAILED"
+
 #cleanup
 kill $SERVERPID
 #rm -rf public backup tmp
