@@ -23,15 +23,19 @@ var backup = {
     },
 
     cleanUp() {
-        const now = Math.floor(Date.now() / 1000)
+        try {
+            const now = Math.floor(Date.now() / 1000)
 
-        Object.keys(this.items).forEach(key => {
-            const item = this.items[key]
-            if ((now - item.lastModificationTime) > config.backup.maxUploadTime) {
-                console.log("[backupCleanUp] Delete id:", key)
-                this.remove(key)
-            }
-        });
+            Object.keys(this.items).forEach(key => {
+                const item = this.items[key]
+                if ((now - item.lastModificationTime) > config.backup.maxUploadTime) {
+                    console.log("[backupCleanUp] Delete id:", key)
+                    this.remove(key)
+                }
+            });
+        } catch(e) {
+            console.log(e)
+        }
     },
 
     remove(key) {
@@ -146,22 +150,27 @@ function joinPath( left, right ) {
 
 
 function checkAuthenticateToken(req, res, next) {
-    if (config.authTokens) {
-        const authHeader = req.headers['authorization']
-        const token = authHeader && authHeader.split(' ')[1]
-        if (token == null) {
-            res.sendStatus(204)
-            return
+    try {
+        if (config.authTokens) {
+            const authHeader = req.headers['authorization']
+            const token = authHeader && authHeader.split(' ')[1]
+            if (token == null) {
+                res.sendStatus(204)
+                return
+            }
+
+            console.log("Token:", token)
+            if (!config.authTokens.includes(token)) {
+                res.sendStatus(403)
+                return
+            }
         }
 
-        console.log("Token:", token)
-        if (!config.authTokens.includes(token)) {
-            res.sendStatus(403)
-            return
-        }
+        next()
+    } catch(e) {
+        res.sendStatus(500)
+        console.log(e)
     }
-
-    next()
 }
 
 
@@ -174,7 +183,12 @@ function checkAuthenticateToken(req, res, next) {
  *   block: file data block
  */
 restApp.post('/backup', checkAuthenticateToken, upload.single('block'), (req, res) => {
-    backup.upload( res, decodeURI(req.body.path), parseInt(req.body.size), parseInt(req.body.offset), req.body.md5, req.file.buffer )
+    try {
+        backup.upload( res, decodeURI(req.body.path), parseInt(req.body.size), parseInt(req.body.offset), req.body.md5, req.file.buffer )
+    } catch(e) {
+        res.sendStatus(500)
+        console.log(e)
+    }
 })
 
 
@@ -225,28 +239,33 @@ function queryInformations( fullPaths ) {
  *   path: must start with '/' and must not contains '..'
  */
 restApp.get('/lndp/queryChildDocuments', checkAuthenticateToken, (req, res) => {
-    const path = req.query.path
+    try {
+        const path = req.query.path
 
-    if (!path.startsWith('/') || path.indexOf('..') >= 0) {
-        res.sendStatus(500)
-        return
-    }
+        if (!path.startsWith('/') || path.indexOf('..') >= 0) {
+            res.sendStatus(500)
+            return
+        }
 
-    const fullPath = joinPath(lndpRoot, path)
-    const stat = fs.lstatSync(fullPath)
+        const fullPath = joinPath(lndpRoot, path)
+        const stat = fs.lstatSync(fullPath)
 
-    if (!stat.isDirectory()) {
-        res.sendStatus(204)
-        return
-    }
+        if (!stat.isDirectory()) {
+            res.sendStatus(204)
+            return
+        }
 
-    fs.readdir(fullPath, (err, files) => {
-        var items = []
-        files.forEach(file => {
-            items.push( joinPath(fullPath, file) )
+        fs.readdir(fullPath, (err, files) => {
+            var items = []
+            files.forEach(file => {
+                items.push( joinPath(fullPath, file) )
+            })
+            res.send(queryInformations(items))
         })
-        res.send(queryInformations(items))
-    })
+    } catch(e) {
+        res.sendStatus(500)
+        console.log(e)
+    }
 })
 
 
@@ -256,15 +275,20 @@ restApp.get('/lndp/queryChildDocuments', checkAuthenticateToken, (req, res) => {
  *   path: must start with '/' and must not contains '..'
  */
 restApp.get('/lndp/queryDocument', checkAuthenticateToken, (req, res) => {
-    const path = req.query.path
+    try {
+        const path = req.query.path
 
-    if (!path.startsWith('/') || path.indexOf('..') >= 0) {
+        if (!path.startsWith('/') || path.indexOf('..') >= 0) {
+            res.sendStatus(500)
+            return
+        }
+
+        var fullPath = joinPath(lndpRoot, path)
+        res.send(queryInformations([fullPath]))
+    } catch(e) {
         res.sendStatus(500)
-        return
+        console.log(e)
     }
-
-    var fullPath = joinPath(lndpRoot, path)
-    res.send(queryInformations([fullPath]))
 })
 
 
@@ -276,46 +300,51 @@ restApp.get('/lndp/queryDocument', checkAuthenticateToken, (req, res) => {
  *   isdir: 0 = new file, else new directory
  */
 restApp.get('/lndp/documentCreate', checkAuthenticateToken, (req, res) => {
-    const path = req.query.path
-    const name = req.query.name
-    const isdir = parseInt(req.query.isdir)
+    try {
+        const path = req.query.path
+        const name = req.query.name
+        const isdir = parseInt(req.query.isdir)
 
-    if (!path.startsWith('/') || path.indexOf('..') >= 0 || name.indexOf('/') >= 0 || name.indexOf('..') >= 0) {
-        res.sendStatus(500)
-        return
-    }
-
-    const id = joinPath( path, name )
-    const fullPath = joinPath(lndpRoot, id)
-
-    fs.lstat(fullPath, (err, stat) => {
-        if (!err) {
-            if (stat.isDirectory() && !isdir) {
-                res.sendStatus(500)
-            } else {
-                res.send( {'id': id} )
-            }
-        } else {
-            if (isdir) {
-                fs.mkdir(fullPath, { recursive: true }, (err) => {
-                    if (err) {
-                        res.sendStatus(500)
-                    } else {
-                        res.send( {'id': id} )
-                    }
-                })
-            } else {
-                fs.open(fullPath, 'w', (err, fd) => {
-                    if (err) {
-                        res.sendStatus(500)
-                    } else {
-                        fs.close(fd, () => {})
-                        res.send( {'id': id} )
-                    }
-                })
-            }
+        if (!path.startsWith('/') || path.indexOf('..') >= 0 || name.indexOf('/') >= 0 || name.indexOf('..') >= 0) {
+            res.sendStatus(500)
+            return
         }
-    })
+
+        const id = joinPath( path, name )
+        const fullPath = joinPath(lndpRoot, id)
+
+        fs.lstat(fullPath, (err, stat) => {
+            if (!err) {
+                if (stat.isDirectory() && !isdir) {
+                    res.sendStatus(500)
+                } else {
+                    res.send( {'id': id} )
+                }
+            } else {
+                if (isdir) {
+                    fs.mkdir(fullPath, { recursive: true }, (err) => {
+                        if (err) {
+                            res.sendStatus(500)
+                        } else {
+                            res.send( {'id': id} )
+                        }
+                    })
+                } else {
+                    fs.open(fullPath, 'w', (err, fd) => {
+                        if (err) {
+                            res.sendStatus(500)
+                        } else {
+                            fs.close(fd, () => {})
+                            res.send( {'id': id} )
+                        }
+                    })
+                }
+            }
+        })
+    } catch(e) {
+        res.sendStatus(500)
+        console.log(e)
+    }
 })
 
 
@@ -326,37 +355,42 @@ restApp.get('/lndp/documentCreate', checkAuthenticateToken, (req, res) => {
  *   newname: new file or directory name
  */
 restApp.get('/lndp/documentRename', checkAuthenticateToken, (req, res) => {
-    const path = req.query.path
-    const newName = req.query.newname
+    try {
+        const path = req.query.path
+        const newName = req.query.newname
 
-    if (!path.startsWith('/') || path.indexOf('..') >= 0 || newName.indexOf('/') >= 0 || newName.indexOf('..') >= 0) {
-        res.sendStatus(500)
-        return
-    }
-
-    const fullPath = joinPath(lndpRoot, path)
-    fs.lstat(fullPath, (err, stat) => {
-        if (err) {
+        if (!path.startsWith('/') || path.indexOf('..') >= 0 || newName.indexOf('/') >= 0 || newName.indexOf('..') >= 0) {
             res.sendStatus(500)
             return
         }
 
-        const dirname = fsPath.dirname(path)
-        const newPath = joinPath(dirname, newName)
-        const fullNewPath = joinPath(lndpRoot, newPath)
+        const fullPath = joinPath(lndpRoot, path)
+        fs.lstat(fullPath, (err, stat) => {
+            if (err) {
+                res.sendStatus(500)
+                return
+            }
 
-        if (fullPath === fullNewPath) {
-            res.send({'id': path})
-        } else {
-            fs.rename(fullPath, fullNewPath, (err) => {
-                if (err) {
-                    res.sendStatus(500)
-                } else {
-                    res.send({'id': newPath})
-                }
-            })
-        }
-    })
+            const dirname = fsPath.dirname(path)
+            const newPath = joinPath(dirname, newName)
+            const fullNewPath = joinPath(lndpRoot, newPath)
+
+            if (fullPath === fullNewPath) {
+                res.send({'id': path})
+            } else {
+                fs.rename(fullPath, fullNewPath, (err) => {
+                    if (err) {
+                        res.sendStatus(500)
+                    } else {
+                        res.send({'id': newPath})
+                    }
+                })
+            }
+        })
+    } catch(e) {
+        res.sendStatus(500)
+        console.log(e)
+    }
 })
 
 
@@ -368,38 +402,43 @@ restApp.get('/lndp/documentRename', checkAuthenticateToken, (req, res) => {
  *   size: maximum read block size
  */
 restApp.get('/lndp/documentRead', checkAuthenticateToken, (req, res) => {
-    const path = req.query.path
-    const offset = parseInt(req.query.offset || '0')
-    const size = parseInt(req.query.size)
+    try {
+        const path = req.query.path
+        const offset = parseInt(req.query.offset || '0')
+        const size = parseInt(req.query.size)
 
-    if (!path.startsWith('/') || path.indexOf('..') >= 0 || offset < 0 || size <= 0) {
-        res.sendStatus(500)
-        return
-    }
-
-    const fullPath = joinPath(lndpRoot, path)
-
-    fs.lstat( fullPath, (err, stat) => {
-        if (err || !stat.isFile()) {
-            res.sendStatus(204)
-        } else {
-            fs.open(fullPath, 'r', (err, fd) => {
-                if (err) {
-                    res.sendStatus(204)
-                } else {
-                    var buffer = new Buffer(size)
-
-                    fs.read( fd, buffer, 0, size, offset, (err, readSize) => {
-                        fs.close(fd, () => {})
-                        if (readSize >= 0) {
-                            res.setHeader('Content-type', 'application/octet-stream')
-                            res.send(buffer.slice(0, readSize))
-                        }
-                    })
-                }
-            })
+        if (!path.startsWith('/') || path.indexOf('..') >= 0 || offset < 0 || size <= 0) {
+            res.sendStatus(500)
+            return
         }
-    })
+
+        const fullPath = joinPath(lndpRoot, path)
+
+        fs.lstat( fullPath, (err, stat) => {
+            if (err || !stat.isFile()) {
+                res.sendStatus(204)
+            } else {
+                fs.open(fullPath, 'r', (err, fd) => {
+                    if (err) {
+                        res.sendStatus(204)
+                    } else {
+                        var buffer = new Buffer(size)
+
+                        fs.read( fd, buffer, 0, size, offset, (err, readSize) => {
+                            fs.close(fd, () => {})
+                            if (readSize >= 0) {
+                                res.setHeader('Content-type', 'application/octet-stream')
+                                res.send(buffer.slice(0, readSize))
+                            }
+                        })
+                    }
+                })
+            }
+        })
+    } catch(e) {
+        res.sendStatus(500)
+        console.log(e)
+    }
 })
 
 
@@ -410,38 +449,43 @@ restApp.get('/lndp/documentRead', checkAuthenticateToken, (req, res) => {
  *   block: file data block
  */
 restApp.post('/lndp/documentAppend', checkAuthenticateToken, upload.single('block'), (req, res) => {
-    const path = decodeURI(req.body.path)
-    const block = req.file
+    try {
+        const path = decodeURI(req.body.path)
+        const block = req.file
 
-    if (!path.startsWith('/') || path.indexOf('..') >= 0) {
-        res.sendStatus(500)
-        return
-    }
-
-    const fullPath = joinPath(lndpRoot, path)
-
-    fs.lstat(fullPath, (err, stat) => {
-        if (err || stat.isDirectory()) {
+        if (!path.startsWith('/') || path.indexOf('..') >= 0) {
             res.sendStatus(500)
             return
         }
 
-        fs.open(fullPath, "a", (err, fd) => {
-            if (err) {
+        const fullPath = joinPath(lndpRoot, path)
+
+        fs.lstat(fullPath, (err, stat) => {
+            if (err || stat.isDirectory()) {
                 res.sendStatus(500)
                 return
             }
 
-            fs.write( fd, block.buffer, (err) => {
-                fs.close(fd, () => {})
+            fs.open(fullPath, "a", (err, fd) => {
                 if (err) {
                     res.sendStatus(500)
-                } else {
-                    res.send('')
+                    return
                 }
+
+                fs.write( fd, block.buffer, (err) => {
+                    fs.close(fd, () => {})
+                    if (err) {
+                        res.sendStatus(500)
+                    } else {
+                        res.send('')
+                    }
+                })
             })
         })
-    })
+    } catch(e) {
+        res.sendStatus(500)
+        console.log(e)
+    }
 })
 
 
@@ -451,34 +495,39 @@ restApp.post('/lndp/documentAppend', checkAuthenticateToken, upload.single('bloc
  *   path: must start with '/' and must not contains '..'
  */
 restApp.get('/lndp/documentReadThumb', checkAuthenticateToken, (req, res) => {
-    const path = req.query.path
+    try {
+        const path = req.query.path
 
-    if (!path.startsWith('/') || path.indexOf('..') >= 0) {
-        res.sendStatus(500)
-        return
-    }
-
-    const fullPath = joinPath(lndpRoot, path)
-
-    fs.lstat(fullPath, (err, stat) => {
-        if (err || stat.isDirectory()) {
+        if (!path.startsWith('/') || path.indexOf('..') >= 0) {
             res.sendStatus(500)
             return
         }
 
-        sharp(fullPath)
-            .resize(config.thumb.size)
-            .rotate()
-            .jpeg({ quality: config.thumb.quality })
-            .toBuffer()
-            .then( buffer => {
-                res.setHeader('Content-type', 'image/jpeg')
-                res.send(buffer)
-            })
-            .catch( err => {
+        const fullPath = joinPath(lndpRoot, path)
+
+        fs.lstat(fullPath, (err, stat) => {
+            if (err || stat.isDirectory()) {
                 res.sendStatus(500)
-            })
-    })
+                return
+            }
+
+            sharp(fullPath)
+                .resize(config.thumb.size)
+                .rotate()
+                .jpeg({ quality: config.thumb.quality })
+                .toBuffer()
+                .then( buffer => {
+                    res.setHeader('Content-type', 'image/jpeg')
+                    res.send(buffer)
+                })
+                .catch( err => {
+                    res.sendStatus(500)
+                })
+        })
+    } catch(e) {
+        res.sendStatus(500)
+        console.log(e)
+    }
 })
 
 
