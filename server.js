@@ -7,7 +7,7 @@ const fsPath = require('path')
 const sharp = require('sharp')
 const md5lib = require('md5')
 const mimeTypes = require('mime-types')
-const bonjour = require('bonjour')()
+const ciao = require("@homebridge/ciao").getResponder()
 
 
 const upload = multer({ storage: multer.memoryStorage() })
@@ -488,17 +488,17 @@ const lndpRoot = config.lndp.root.replace("~", os.homedir)
 const backupRoot = config.backup.root.replace("~", os.homedir)
 
 config.serviceTypes.forEach((serviceType) => {
-    console.log("Publish:", serviceType)
-    bonjour.publish({
+    console.log("Start publishing:", serviceType)
+    ciao.createService({
         name: os.hostname() + "_" + serviceType,
         type: serviceType,
         port: config.servicePort
-    })
+    }).advertise()
 });
 
 process.on('SIGINT', function() {
     console.log("Caught interrupt signal")
-    bonjour.unpublishAll()
+    ciao.destroy()
     process.exit()
 });
 
