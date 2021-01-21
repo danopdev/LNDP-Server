@@ -121,9 +121,9 @@ var backup = {
 
                 fs.writeFile(fullPath, uploadInfo.data, "binary", (err) => {
                     if (err) {
-                        res.send(500)
+                        res.sendStatus(500)
                     } else {
-                        res.send(200)
+                        res.sendStatus(200)
                     }
                 })
             })
