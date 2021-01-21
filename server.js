@@ -313,30 +313,36 @@ restApp.get('/lndp/documentCreate', checkAuthenticateToken, (req, res) => {
 
         fs.lstat(fullPath, (err, stat) => {
             if (!err) {
-                if (stat.isDirectory() && !isdir) {
+                if (stat.isDirectory()) {
+                    if (isdir) {
+                        res.send( {'id': id} )
+                    } else {
+                        res.sendStatus(500)
+                    }
+                    return
+                } else if (isdir) {
                     res.sendStatus(500)
-                } else {
-                    res.send( {'id': id} )
+                    return
                 }
+            }
+
+            if (isdir) {
+                fs.mkdir(fullPath, { recursive: true }, (err) => {
+                    if (err) {
+                        res.sendStatus(500)
+                    } else {
+                        res.send( {'id': id} )
+                    }
+                })
             } else {
-                if (isdir) {
-                    fs.mkdir(fullPath, { recursive: true }, (err) => {
-                        if (err) {
-                            res.sendStatus(500)
-                        } else {
-                            res.send( {'id': id} )
-                        }
-                    })
-                } else {
-                    fs.open(fullPath, 'w', (err, fd) => {
-                        if (err) {
-                            res.sendStatus(500)
-                        } else {
-                            fs.close(fd, () => {})
-                            res.send( {'id': id} )
-                        }
-                    })
-                }
+                fs.open(fullPath, 'w', (err, fd) => {
+                    if (err) {
+                        res.sendStatus(500)
+                    } else {
+                        fs.close(fd, () => {})
+                        res.send( {'id': id} )
+                    }
+                })
             }
         })
     } catch(e) {
