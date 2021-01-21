@@ -107,8 +107,6 @@ var backup = {
 
             this.remove(path)
 
-            console.log(uploadInfo)
-
             const md5Buffer = md5lib(uploadInfo.data)
             if (md5 != md5Buffer) {
                 res.sendStatus(200)
@@ -184,7 +182,7 @@ function checkAuthenticateToken(req, res, next) {
  */
 restApp.post('/backup', checkAuthenticateToken, upload.single('block'), (req, res) => {
     try {
-        backup.upload( res, decodeURI(req.body.path), parseInt(req.body.size), parseInt(req.body.offset), req.body.md5, req.file.buffer )
+        backup.upload( res, decodeURIComponent(req.body.path), parseInt(req.body.size), parseInt(req.body.offset), req.body.md5, req.file.buffer )
     } catch(e) {
         res.sendStatus(500)
         console.log(e)
@@ -450,7 +448,7 @@ restApp.get('/lndp/documentRead', checkAuthenticateToken, (req, res) => {
  */
 restApp.post('/lndp/documentAppend', checkAuthenticateToken, upload.single('block'), (req, res) => {
     try {
-        const path = decodeURI(req.body.path)
+        const path = decodeURIComponent(req.body.path)
         const block = req.file
 
         if (!path.startsWith('/') || path.indexOf('..') >= 0) {
