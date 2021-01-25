@@ -74,7 +74,7 @@ var backup = {
 
         const fullPath = joinPath(backupRoot, path)
 
-        fs.lstat(fullPath, (err, stat) => {
+        fs.stat(fullPath, (err, stat) => {
             if (!err) {
                 this.remove(path)
                 res.sendStatus(409)
@@ -196,7 +196,7 @@ function queryInformations( fullPaths ) {
     var output = []
 
     fullPaths.forEach((fullPath, i) => {
-        const stat = fs.lstatSync(fullPath)
+        const stat = fs.statSync(fullPath)
         var mimeType = 'application/octet-stream'
 
         if (stat.isDirectory()) {
@@ -246,7 +246,7 @@ restApp.get('/lndp/queryChildDocuments', checkAuthenticateToken, (req, res) => {
         }
 
         const fullPath = joinPath(lndpRoot, path)
-        const stat = fs.lstatSync(fullPath)
+        const stat = fs.statSync(fullPath)
 
         if (!stat.isDirectory()) {
             res.sendStatus(204)
@@ -311,7 +311,7 @@ restApp.get('/lndp/documentCreate', checkAuthenticateToken, (req, res) => {
         const id = joinPath( path, name )
         const fullPath = joinPath(lndpRoot, id)
 
-        fs.lstat(fullPath, (err, stat) => {
+        fs.stat(fullPath, (err, stat) => {
             if (!err) {
                 if (stat.isDirectory()) {
                     if (isdir) {
@@ -369,7 +369,7 @@ restApp.get('/lndp/documentRename', checkAuthenticateToken, (req, res) => {
         }
 
         const fullPath = joinPath(lndpRoot, path)
-        fs.lstat(fullPath, (err, stat) => {
+        fs.stat(fullPath, (err, stat) => {
             if (err) {
                 res.sendStatus(500)
                 return
@@ -418,7 +418,7 @@ restApp.get('/lndp/documentRead', checkAuthenticateToken, (req, res) => {
 
         const fullPath = joinPath(lndpRoot, path)
 
-        fs.lstat( fullPath, (err, stat) => {
+        fs.stat( fullPath, (err, stat) => {
             if (err || !stat.isFile()) {
                 res.sendStatus(204)
             } else {
@@ -464,7 +464,7 @@ restApp.post('/lndp/documentAppend', checkAuthenticateToken, upload.single('bloc
 
         const fullPath = joinPath(lndpRoot, path)
 
-        fs.lstat(fullPath, (err, stat) => {
+        fs.stat(fullPath, (err, stat) => {
             if (err || stat.isDirectory()) {
                 res.sendStatus(500)
                 return
@@ -509,7 +509,7 @@ restApp.get('/lndp/documentReadThumb', checkAuthenticateToken, (req, res) => {
 
         const fullPath = joinPath(lndpRoot, path)
 
-        fs.lstat(fullPath, (err, stat) => {
+        fs.stat(fullPath, (err, stat) => {
             if (err || stat.isDirectory()) {
                 res.sendStatus(500)
                 return
