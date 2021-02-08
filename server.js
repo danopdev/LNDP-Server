@@ -219,10 +219,10 @@ function queryInformations( fullPaths ) {
         try {
             fs.accessSync(fullPath, fs.constants.R_OK);
 
-            var isro = true;
+            var isReadOnly = true;
             try {
                 fs.accessSync(fullPath, fs.constants.R_OK);
-                isro = false;
+                isReadOnly = false;
             } catch(e) {
             }
 
@@ -230,7 +230,7 @@ function queryInformations( fullPaths ) {
                 'id': id,
                 'name': name,
                 'isdir' : stat.isDirectory(),
-                'isro': isro,
+                'isreadonly': isReadOnly,
                 'size': stat.size,
                 'date': Math.floor(stat.mtimeMs * 1000),
                 'type': mimeType,
