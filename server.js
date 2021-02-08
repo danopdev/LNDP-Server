@@ -1,6 +1,6 @@
 //const https = require('https');
 const express = require('express');
-var multer  = require('multer');
+const multer  = require('multer');
 const fs = require('fs');
 const os = require('os');
 const fsPath = require('path');
