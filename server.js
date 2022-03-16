@@ -203,7 +203,10 @@ function queryInformations( fullPaths ) {
             mimeType = 'application/x-directory';
         } else {
             try {
-                mimeType = mimeTypes.lookup(fullPath);
+                var mimeType_ = mimeTypes.lookup(fullPath);
+                if (mimeType_ !== false) {
+                    mimeType = mimeType_;
+                }
             } catch(e) {
 
             }
@@ -232,7 +235,7 @@ function queryInformations( fullPaths ) {
                 'isdir' : stat.isDirectory(),
                 'isreadonly': isReadOnly,
                 'size': stat.size,
-                'date': Math.floor(stat.mtimeMs * 1000),
+                'date': stat.mtimeMs,
                 'type': mimeType,
                 'thumb': mimeType == 'image/jpeg'
             } )
