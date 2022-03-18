@@ -14,6 +14,11 @@ const upload = multer({ storage: multer.memoryStorage() });
 const restApp = express();
 
 
+const urlDecode(s) {
+    s = s.replace('+', '%20')
+    return decodeURIComponent(s);
+}
+
 
 var backup = {
     items: [],
@@ -182,7 +187,7 @@ function checkAuthenticateToken(req, res, next) {
  */
 restApp.post('/backup', checkAuthenticateToken, upload.single('block'), (req, res) => {
     try {
-        backup.upload( res, decodeURIComponent(req.body.path), parseInt(req.body.size), parseInt(req.body.offset), req.body.md5, req.file.buffer );
+        backup.upload( res, urlDecode(req.body.path), parseInt(req.body.size), parseInt(req.body.offset), req.body.md5, req.file.buffer );
     } catch(e) {
         res.sendStatus(500);
         console.log(e);
@@ -470,7 +475,7 @@ restApp.get('/lndp/documentRead', checkAuthenticateToken, (req, res) => {
  */
 restApp.post('/lndp/documentAppend', checkAuthenticateToken, upload.single('block'), (req, res) => {
     try {
-        const path = decodeURIComponent(req.body.path);
+        const path = urlDecode(req.body.path);
         const block = req.file;
 
         if (!path.startsWith('/') || path.indexOf('..') >= 0) {
