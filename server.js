@@ -186,6 +186,11 @@ function checkAuthenticateToken(req, res, next) {
  *   block: file data block
  */
 restApp.post('/backup', checkAuthenticateToken, upload.single('block'), (req, res) => {
+    if (config.access === "r") {
+        res.sendStatus(500);
+        return;
+    }
+
     try {
         backup.upload( res, urlDecode(req.body.path), parseInt(req.body.size), parseInt(req.body.offset), req.body.md5, req.file.buffer );
     } catch(e) {
@@ -350,6 +355,11 @@ restApp.get('/lndp/queryDocument', checkAuthenticateToken, (req, res) => {
  *   isdir: 0 = new file, else new directory
  */
 restApp.get('/lndp/documentCreate', checkAuthenticateToken, (req, res) => {
+    if (config.access === "r") {
+        res.sendStatus(500);
+        return;
+    }
+
     try {
         const path = req.query.path;
         const name = req.query.name;
@@ -406,6 +416,11 @@ restApp.get('/lndp/documentCreate', checkAuthenticateToken, (req, res) => {
  *   newname: new file or directory name
  */
 restApp.get('/lndp/documentRename', checkAuthenticateToken, (req, res) => {
+    if (config.access === "r") {
+        res.sendStatus(500);
+        return;
+    }
+
     try {
         const path = req.query.path;
         const newName = req.query.newname;
@@ -500,6 +515,11 @@ restApp.get('/lndp/documentRead', checkAuthenticateToken, (req, res) => {
  *   block: file data block
  */
 restApp.post('/lndp/documentAppend', checkAuthenticateToken, upload.single('block'), (req, res) => {
+    if (config.access === "r") {
+        res.sendStatus(500);
+        return;
+    }
+
     try {
         const path = urlDecode(req.body.path);
         const block = req.file;
