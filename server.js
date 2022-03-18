@@ -501,7 +501,7 @@ restApp.get('/lndp/documentRead', checkAuthenticateToken, (req, res) => {
  */
 restApp.post('/lndp/documentAppend', checkAuthenticateToken, upload.single('block'), (req, res) => {
     try {
-        const path = req.body.path;
+        const path = urlDecode(req.body.path);
         const block = req.file;
 
         if (!path.startsWith('/') || path.indexOf('..') >= 0) {
