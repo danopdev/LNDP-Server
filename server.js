@@ -14,7 +14,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 const restApp = express();
 
 
-const urlDecode(s) {
+function urlDecode(s) {
     s = s.replace('+', '%20')
     return decodeURIComponent(s);
 }
@@ -195,6 +195,34 @@ restApp.post('/backup', checkAuthenticateToken, upload.single('block'), (req, re
 })
 
 
+function getThumbPath( fullPath ) {
+    const uriFullPath = "file://" + fullPath
+    const md5 = md5lib(uriFullPath)
+    const basePath = process.env.HOME + '/.cache/thumbnails/'
+
+    const largePath = basePath + 'large/' + md5 + '.png'
+    if (fs.existsSync(largePath)) return largePath
+
+    const normalPath = basePath + 'normal/' + md5 + '.png'
+    if (fs.existsSync(normalPath)) return normalPath
+
+    return null
+}
+
+
+function hasThumb( fullPath, mimeType ) {
+    if (mimeType.startsWith('image/')) return true
+    if (null != getThumbPath(fullPath)) return true
+    return false
+}
+
+
+function getThumb( fullPath, mimeType ) {
+    if (mimeType.startsWith('image/')) return true
+    if (null != getThumbPath(fullPath)) return true
+    return false
+}
+
 
 function queryInformations( fullPaths ) {
     const lenRoot = lndpRoot.length;
@@ -218,6 +246,7 @@ function queryInformations( fullPaths ) {
         }
 
         const id = fullPath.substring(lenRoot);
+        let name = ''
         if ('/' == id) {
             name = id;
         } else {
@@ -234,6 +263,8 @@ function queryInformations( fullPaths ) {
             } catch(e) {
             }
 
+            const thumb = stat.isDirectory() ? false : hasThumb(fullPath, mimeType)
+
             output.push( {
                 'id': id,
                 'name': name,
@@ -242,7 +273,7 @@ function queryInformations( fullPaths ) {
                 'size': stat.size,
                 'date': stat.mtimeMs,
                 'type': mimeType,
-                'thumb': mimeType == 'image/jpeg'
+                'thumb': thumb
             } )
         } catch(e) {
         }
@@ -536,18 +567,31 @@ restApp.get('/lndp/documentReadThumb', checkAuthenticateToken, (req, res) => {
                 return;
             }
 
-            sharp(fullPath)
-                .resize(config.thumb.size)
-                .rotate()
-                .jpeg({ quality: config.thumb.quality })
-                .toBuffer()
-                .then( buffer => {
-                    res.setHeader('Content-type', 'image/jpeg');
-                    res.send(buffer);
+            const thumbPath = getThumbPath(fullPath)
+
+            if (null != thumbPath) {
+                fs.readFile( thumbPath, null, (err, data) => {
+                    if (err) {
+                        res.sendStatus(500);
+                    } else {
+                        res.setHeader('Content-type', 'image/png');
+                        res.send(data);
+                    }
                 })
-                .catch( err => {
-                    res.sendStatus(500);
-                })
+            } else {
+                sharp(fullPath)
+                    .resize(config.thumb.size)
+                    .rotate()
+                    .jpeg({ quality: config.thumb.quality })
+                    .toBuffer()
+                    .then( buffer => {
+                        res.setHeader('Content-type', 'image/jpeg');
+                        res.send(buffer);
+                    })
+                    .catch( err => {
+                        res.sendStatus(500);
+                    })
+            }
         })
     } catch(e) {
         res.sendStatus(500);
