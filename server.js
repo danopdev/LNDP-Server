@@ -15,7 +15,7 @@ const restApp = express();
 
 
 function urlDecode(s) {
-    s = s.replace('+', '%20')
+    s = s.replace(/\+/g, ' ')
     return decodeURIComponent(s);
 }
 
@@ -365,17 +365,12 @@ restApp.get('/lndp/documentCreate', checkAuthenticateToken, (req, res) => {
 
         fs.stat(fullPath, (err, stat) => {
             if (!err) {
-                if (stat.isDirectory()) {
-                    if (isdir) {
-                        res.send( {'id': id} );
-                    } else {
-                        res.sendStatus(500);
-                    }
-                    return;
+                if (stat.isDirectory() === isdir) {
+                    res.send( {'id': id} );
                 } else if (isdir) {
                     res.sendStatus(500);
-                    return;
                 }
+                return;
             }
 
             if (isdir) {
@@ -506,7 +501,7 @@ restApp.get('/lndp/documentRead', checkAuthenticateToken, (req, res) => {
  */
 restApp.post('/lndp/documentAppend', checkAuthenticateToken, upload.single('block'), (req, res) => {
     try {
-        const path = urlDecode(req.body.path);
+        const path = req.body.path;
         const block = req.file;
 
         if (!path.startsWith('/') || path.indexOf('..') >= 0) {
