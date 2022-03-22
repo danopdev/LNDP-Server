@@ -1,4 +1,3 @@
-//const https = require('https');
 const express = require('express');
 const multer  = require('multer');
 const fs = require('fs');
@@ -14,128 +13,16 @@ const upload = multer({ storage: multer.memoryStorage() });
 const restApp = express();
 
 
-function urlDecode(s) {
-    s = s.replace(/\+/g, ' ')
-    return decodeURIComponent(s);
+function isValidFileName(name) {
+    return name !== '.' && name !== '..' && name !== '~' && name.indexOf('/') < 0
 }
 
 
-var backup = {
-    items: [],
-
-    init() {
-        setInterval(this.cleanUp.bind(this), config.backup.checkDeadUploadPeriod * 1000);
-    },
-
-    cleanUp() {
-        try {
-            const now = Math.floor(Date.now() / 1000);
-
-            Object.keys(this.items).forEach(key => {
-                const item = this.items[key];
-                if ((now - item.lastModificationTime) > config.backup.maxUploadTime) {
-                    console.log("[backupCleanUp] Delete id:", key);
-                    this.remove(key);
-                }
-            });
-        } catch(e) {
-            console.log(e);
-        }
-    },
-
-    remove(key) {
-        if (this.hasKey(key)) {
-            delete this.items[key];
-        }
-    },
-
-    hasKey(key) {
-        return key in this.items;
-    },
-
-    add( path, size, md5, buffer ) {
-        var uploadInfo = {
-            path: path,
-            size: size,
-            md5: md5,
-            data: buffer,
-            lastModificationTime: Math.floor(Date.now() / 1000),
-
-            update( buffer ) {
-                this.data = Buffer.concat( [ this.data, buffer ] );
-                this.lastModificationTime = Math.floor(Date.now() / 1000);
-            }
-        }
-
-        this.items[path] = uploadInfo;
-        return uploadInfo;
-    },
-
-    upload( res, path, size, offset, md5, buffer ) {
-        if (size < 0 || offset < 0 || !path.startsWith('/') || path.indexOf('..') >= 0) {
-            res.sendStatus(500);
-            return;
-        }
-
-        const fullPath = joinPath(backupRoot, path);
-
-        fs.stat(fullPath, (err, stat) => {
-            if (!err) {
-                this.remove(path);
-                res.sendStatus(409);
-                return;
-            }
-
-            var uploadInfo;
-            if (offset > 0) {
-                uploadInfo = this.items[path];
-                if (!uploadInfo || uploadInfo.size != size || uploadInfo.md5 != md5 || uploadInfo.data.length != offset) {
-                    res.sendStatus(500);
-                    return;
-                }
-
-                uploadInfo.update(buffer);
-            } else {
-                uploadInfo = this.add( path, size, md5, buffer );
-            }
-
-            if (uploadInfo.data.length > size) {
-                this.remove(path);
-                res.sendStatus(500);
-                return;
-            }
-
-            if (uploadInfo.data.length < size) {
-                res.sendStatus(200);
-                return;
-            }
-
-            this.remove(path);
-
-            const md5Buffer = md5lib(uploadInfo.data);
-            if (md5 != md5Buffer) {
-                res.sendStatus(200);
-                return;
-            }
-
-            fs.mkdir(fsPath.dirname(fullPath), { recursive: true }, (err) => {
-                if (err) {
-                    res.sendStatus(500);
-                    return;
-                }
-
-                fs.writeFile(fullPath, uploadInfo.data, "binary", (err) => {
-                    if (err) {
-                        res.sendStatus(500);
-                    } else {
-                        res.sendStatus(200);
-                    }
-                })
-            })
-        })
-    }
+function isValidPath(path) {
+    return path.startsWith('/')
+        && !path.endsWith('/.') && !path.endsWith('/..')  && !path.endsWith('~') 
+        && path.indexOf('/./') < 0 && path.indexOf('/../') < 0 && path.indexOf('/~/') < 0
 }
-
 
 
 function joinPath( left, right ) {
@@ -162,7 +49,7 @@ function checkAuthenticateToken(req, res, next) {
                 return;
             }
 
-            console.log("Token:", token)
+            //console.log("Token:", token)
             if (!config.authTokens.includes(token)) {
                 res.sendStatus(403);
                 return;
@@ -177,55 +64,22 @@ function checkAuthenticateToken(req, res, next) {
 }
 
 
-/**
- * API: POST /backup
- *   path: url encoded, must start with '/' and must not contains '..'
- *   size: full path size (>= 0)
- *   offset: block offset (>= 0)
- *   md5: final file content md5
- *   block: file data block
- */
-restApp.post('/backup', checkAuthenticateToken, upload.single('block'), (req, res) => {
-    if (config.access === "r") {
-        res.sendStatus(500);
-        return;
-    }
-
-    try {
-        backup.upload( res, urlDecode(req.body.path), parseInt(req.body.size), parseInt(req.body.offset), req.body.md5, req.file.buffer );
-    } catch(e) {
-        res.sendStatus(500);
-        console.log(e);
-    }
-})
-
-
 function getThumbPath( fullPath ) {
     const uriFullPath = "file://" + fullPath
     const md5 = md5lib(uriFullPath)
     const basePath = process.env.HOME + '/.cache/thumbnails/'
 
-    const largePath = basePath + 'large/' + md5 + '.png'
-    if (fs.existsSync(largePath)) return largePath
-
-    const normalPath = basePath + 'normal/' + md5 + '.png'
-    if (fs.existsSync(normalPath)) return normalPath
+    for (const folder of [ 'large', 'normal' ]) {
+        const thumbPath = basePath + 'large/' + md5 + '.png'
+        if (fs.existsSync(thumbPath)) return thumbPath
+    }
 
     return null
 }
 
 
 function hasThumb( fullPath, mimeType ) {
-    if (mimeType.startsWith('image/')) return true
-    if (null != getThumbPath(fullPath)) return true
-    return false
-}
-
-
-function getThumb( fullPath, mimeType ) {
-    if (mimeType.startsWith('image/')) return true
-    if (null != getThumbPath(fullPath)) return true
-    return false
+    return mimeType.startsWith('image/') || null !== getThumbPath(fullPath)
 }
 
 
@@ -242,11 +96,8 @@ function queryInformations( fullPaths ) {
         } else {
             try {
                 var mimeType_ = mimeTypes.lookup(fullPath);
-                if (mimeType_ !== false) {
-                    mimeType = mimeType_;
-                }
+                if (mimeType_ !== false) mimeType = mimeType_;
             } catch(e) {
-
             }
         }
 
@@ -262,10 +113,12 @@ function queryInformations( fullPaths ) {
             fs.accessSync(fullPath, fs.constants.R_OK);
 
             var isReadOnly = true;
-            try {
-                fs.accessSync(fullPath, fs.constants.R_OK);
-                isReadOnly = false;
-            } catch(e) {
+            if (!config.readOnly) {
+                try {
+                    fs.accessSync(fullPath, fs.constants.R_OK);
+                    isReadOnly = false;
+                } catch(e) {
+                }
             }
 
             const thumb = stat.isDirectory() ? false : hasThumb(fullPath, mimeType)
@@ -290,14 +143,14 @@ function queryInformations( fullPaths ) {
 
 
 /**
- * API: GET /lndp/queryChildDocuments
+ * API: GET /queryChildDocuments
  *   path: must start with '/' and must not contains '..'
  */
-restApp.get('/lndp/queryChildDocuments', checkAuthenticateToken, (req, res) => {
+restApp.get('/queryChildDocuments', checkAuthenticateToken, (req, res) => {
     try {
         const path = req.query.path;
 
-        if (!path.startsWith('/') || path.indexOf('..') >= 0) {
+        if (!isValidPath(path)) {
             res.sendStatus(500);
             return;
         }
@@ -326,14 +179,14 @@ restApp.get('/lndp/queryChildDocuments', checkAuthenticateToken, (req, res) => {
 
 
 /**
- * API: GET /lndp/queryDocument
+ * API: GET /queryDocument
  *   path: must start with '/' and must not contains '..'
  */
-restApp.get('/lndp/queryDocument', checkAuthenticateToken, (req, res) => {
+restApp.get('/queryDocument', checkAuthenticateToken, (req, res) => {
     try {
         const path = req.query.path;
 
-        if (!path.startsWith('/') || path.indexOf('..') >= 0) {
+        if (!isValidPath(path)) {
             res.sendStatus(500);
             return;
         }
@@ -349,13 +202,13 @@ restApp.get('/lndp/queryDocument', checkAuthenticateToken, (req, res) => {
 
 
 /**
- * API: GET /lndp/documentCreate
+ * API: GET /documentCreate
  *   path: folder (must start with '/' and must not contains '..')
  *   name: new file or directory
  *   isdir: 0 = new file, else new directory
  */
-restApp.get('/lndp/documentCreate', checkAuthenticateToken, (req, res) => {
-    if (config.access === "r") {
+restApp.get('/documentCreate', checkAuthenticateToken, (req, res) => {
+    if (config.readOnly) {
         res.sendStatus(500);
         return;
     }
@@ -365,7 +218,7 @@ restApp.get('/lndp/documentCreate', checkAuthenticateToken, (req, res) => {
         const name = req.query.name;
         const isdir = parseInt(req.query.isdir);
 
-        if (!path.startsWith('/') || path.indexOf('..') >= 0 || name.indexOf('/') >= 0 || name.indexOf('..') >= 0) {
+        if (!isValidPath(path) || !isValidFileName(name)) {
             res.sendStatus(500);
             return;
         }
@@ -377,7 +230,7 @@ restApp.get('/lndp/documentCreate', checkAuthenticateToken, (req, res) => {
             if (!err) {
                 if (stat.isDirectory() === isdir) {
                     res.send( {'id': id} );
-                } else if (isdir) {
+                } else {
                     res.sendStatus(500);
                 }
                 return;
@@ -392,12 +245,19 @@ restApp.get('/lndp/documentCreate', checkAuthenticateToken, (req, res) => {
                     }
                 })
             } else {
-                fs.open(fullPath, 'w', (err, fd) => {
+                const dirName = fsPath.dirname(fullPath)
+                fs.mkdir(dirName, { recursive: true }, (err) => {
                     if (err) {
                         res.sendStatus(500);
                     } else {
-                        fs.close(fd, () => {});
-                        res.send( {'id': id} );
+                        fs.open(fullPath, 'w', (err, fd) => {
+                            if (err) {
+                                res.sendStatus(500);
+                            } else {
+                                fs.close(fd, () => {});
+                                res.send( {'id': id} );
+                            }
+                        })
                     }
                 })
             }
@@ -411,12 +271,12 @@ restApp.get('/lndp/documentCreate', checkAuthenticateToken, (req, res) => {
 
 
 /**
- * API: GET /lndp/documentRename
+ * API: GET /documentRename
  *   path: must start with '/' and must not contains '..'
  *   newname: new file or directory name
  */
-restApp.get('/lndp/documentRename', checkAuthenticateToken, (req, res) => {
-    if (config.access === "r") {
+restApp.get('/documentRename', checkAuthenticateToken, (req, res) => {
+    if (config.readOnly) {
         res.sendStatus(500);
         return;
     }
@@ -424,8 +284,10 @@ restApp.get('/lndp/documentRename', checkAuthenticateToken, (req, res) => {
     try {
         const path = req.query.path;
         const newName = req.query.newname;
+        const newNameIsValidFileName = isValidFileName(newName)
+        const newNameIsValidPath = isValidPath(newName)
 
-        if (!path.startsWith('/') || path.indexOf('..') >= 0 || newName.indexOf('/') >= 0 || newName.indexOf('..') >= 0) {
+        if (!isValidPath(path) || !(newNameIsValidFileName || newNameIsValidPath)) {
             res.sendStatus(500);
             return;
         }
@@ -437,8 +299,7 @@ restApp.get('/lndp/documentRename', checkAuthenticateToken, (req, res) => {
                 return;
             }
 
-            const dirname = fsPath.dirname(path);
-            const newPath = joinPath(dirname, newName);
+            const newPath = newNameIsValidPath ? newName : joinPath(fsPath.dirname(path), newName);
             const fullNewPath = joinPath(lndpRoot, newPath);
 
             if (fullPath === fullNewPath) {
@@ -462,18 +323,18 @@ restApp.get('/lndp/documentRename', checkAuthenticateToken, (req, res) => {
 
 
 /**
- * API: GET /lndp/documentRead
+ * API: GET /documentRead
  *   path: must start with '/' and must not contains '..'
  *   offset: optional (>= 0)
  *   size: maximum read block size
  */
-restApp.get('/lndp/documentRead', checkAuthenticateToken, (req, res) => {
+restApp.get('/documentRead', checkAuthenticateToken, (req, res) => {
     try {
         const path = req.query.path;
         const offset = parseInt(req.query.offset || '0');
         const size = parseInt(req.query.size);
 
-        if (!path.startsWith('/') || path.indexOf('..') >= 0 || offset < 0 || size <= 0) {
+        if (!isValidPath(path) || offset < 0 || size <= 0) {
             res.sendStatus(500);
             return
         }
@@ -488,7 +349,7 @@ restApp.get('/lndp/documentRead', checkAuthenticateToken, (req, res) => {
                     if (err) {
                         res.sendStatus(204);
                     } else {
-                        var buffer = new Buffer(size);
+                        var buffer = Buffer.alloc(size);
 
                         fs.read( fd, buffer, 0, size, offset, (err, readSize) => {
                             fs.close(fd, () => {});
@@ -510,21 +371,21 @@ restApp.get('/lndp/documentRead', checkAuthenticateToken, (req, res) => {
 
 
 /**
- * API: POST /lndp/documentAppend
+ * API: POST /documentAppend
  *   path: must start with '/' and must not contains '..'
  *   block: file data block
  */
-restApp.post('/lndp/documentAppend', checkAuthenticateToken, upload.single('block'), (req, res) => {
-    if (config.access === "r") {
+restApp.post('/documentAppend', checkAuthenticateToken, upload.single('block'), (req, res) => {
+    if (config.readOnly) {
         res.sendStatus(500);
         return;
     }
 
     try {
-        const path = urlDecode(req.body.path);
+        const path = req.query.path;
         const block = req.file;
 
-        if (!path.startsWith('/') || path.indexOf('..') >= 0) {
+        if (!isValidPath(path)) {
             res.sendStatus(500);
             return;
         }
@@ -562,14 +423,14 @@ restApp.post('/lndp/documentAppend', checkAuthenticateToken, upload.single('bloc
 
 
 /**
- * API: GET /lndp/documentReadThumb
+ * API: GET /documentReadThumb
  *   path: must start with '/' and must not contains '..'
  */
-restApp.get('/lndp/documentReadThumb', checkAuthenticateToken, (req, res) => {
+restApp.get('/documentReadThumb', checkAuthenticateToken, (req, res) => {
     try {
         const path = req.query.path;
 
-        if (!path.startsWith('/') || path.indexOf('..') >= 0) {
+        if (!isValidPath(path)) {
             res.sendStatus(500);
             return;
         }
@@ -616,18 +477,30 @@ restApp.get('/lndp/documentReadThumb', checkAuthenticateToken, (req, res) => {
 
 
 
-const config = require(process.argv[2] || "./config.json");
-const lndpRoot = config.lndp.root.replace("~", os.homedir);
-const backupRoot = config.backup.root.replace("~", os.homedir);
+function toAbsPath(path) {
+    if (path.startsWith('~')) {
+        path = joinPath( os.homedir, path.substring(1) )
+    } else if (path.startsWith('.')) {
+        path = joinPath( process.cwd(), path )
+    }
+    return fsPath.normalize(path)
+}
 
-config.serviceTypes.forEach((serviceType) => {
-    console.log("Start publishing:", serviceType);
-    ciao.createService({
-        name: os.hostname() + "_" + serviceType,
-        type: serviceType,
-        port: config.servicePort
-    }).advertise();
-});
+
+
+const config = require(process.argv[2] || "./config.json");
+const lndpRoot = toAbsPath(config.root);
+const serverName = os.hostname() + '-' + os.type()
+
+console.log("Name:", serverName);
+console.log("Port:", config.servicePort);
+console.log("Path:", lndpRoot);
+
+ciao.createService({
+    name: serverName,
+    type: "lndp",
+    port: config.servicePort
+}).advertise();
 
 process.on('SIGINT', function() {
     console.log("Caught interrupt signal");
@@ -635,13 +508,4 @@ process.on('SIGINT', function() {
     process.exit();
 });
 
-backup.init();
-
-console.log("Port:", config.servicePort);
-
 restApp.listen(config.servicePort);
-// https.createServer( {
-//     key: fs.readFileSync(config.ssl.keyFile),
-//     cert: fs.readFileSync(config.ssl.certFile),
-//     passphrase: config.ssl.passphrase
-// }, restApp ).listen(config.servicePort)
