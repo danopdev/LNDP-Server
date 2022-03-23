@@ -198,8 +198,6 @@ restApp.get('/queryDocument', checkAuthenticateToken, (req, res) => {
     } catch(e) {
         res.sendStatus(500)
         debug(e)
-        debug("TEST")
-        console.log(res)
     }
 })
 
