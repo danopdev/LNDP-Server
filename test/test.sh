@@ -5,7 +5,7 @@ rm -rf public tmp
 mkdir public tmp
 
 cd ..
-node server.js ./test/config-test.json >test/tmp/server.log 2>&1 &
+DEBUG=lndp node server.js ./test/config-test.json >test/tmp/server.log 2>&1 &
 SERVERPID=$!
 echo "Wait server to start"
 sleep 2
@@ -18,7 +18,7 @@ cp file_small* public/Noël
 
 echo -ne "Test: /queryDocument token"
 curl -k "http://localhost:1800/queryDocument?path=/" --output tmp/output.txt >>tmp/test.log 2>&1
-[ -s tmp/output.txt ] && echo " => FAILED" || echo " => OK"
+grep -q 'Forbidden' tmp/output.txt && echo " => OK" || echo " => FAILED"
 
 echo -ne "Test: /queryDocument /"
 curl -H "Authorization: Bearer 1234" -k "http://localhost:1800/queryDocument?path=/" --output tmp/output.txt 1>tmp/test.log 2>&1
@@ -38,7 +38,7 @@ grep -q '"id":"/Noël/file_small.jpg","name":"file_small.jpg","isdir":false' tmp
 
 echo -ne "Test: /queryChildDocuments token"
 curl -k "http://localhost:1800/queryChildDocuments?path=/" --output tmp/output.txt >>tmp/test.log 2>&1
-[ -s tmp/output.txt ] && echo " => FAILED" || echo " => OK"
+grep -q 'Forbidden' tmp/output.txt && echo " => OK" || echo " => FAILED"
 
 echo -ne "Test: /queryChildDocuments /"
 curl -H "Authorization: Bearer 1234" -k "http://localhost:1800/queryChildDocuments?path=/" --output tmp/output.txt >>tmp/test.log 2>&1
@@ -50,7 +50,7 @@ grep -q '"id":"/Noël/file_small.bin","name":"file_small.bin","isdir":false' tmp
 
 echo -ne "Test: /documentCreate token"
 curl -k "http://localhost:1800/documentCreate?path=/&name=b.bin" --output tmp/output.txt >>tmp/test.log 2>&1
-[ -s tmp/output.txt ] && echo " => FAILED" || echo " => OK"
+grep -q 'Forbidden' tmp/output.txt && echo " => OK" || echo " => FAILED"
 
 echo -ne "Test: /documentCreate /b.bin"
 curl -H "Authorization: Bearer 1234" -k "http://localhost:1800/documentCreate?path=/&name=b.bin" --output tmp/output.txt >>tmp/test.log 2>&1
@@ -74,7 +74,7 @@ grep -q 'Internal Server Error' tmp/output.txt && echo " => OK" || echo " => FAI
 
 echo -ne "Test: /documentRename token"
 curl -k "http://localhost:1800/documentRename?path=/c&newname=d" --output tmp/output.txt >>tmp/test.log 2>&1
-[ -s tmp/output.txt ] && echo " => FAILED" || echo " => OK"
+grep -q 'Forbidden' tmp/output.txt && echo " => OK" || echo " => FAILED"
 
 echo -ne "Test: /documentRename /c to /d"
 curl -H "Authorization: Bearer 1234" -k "http://localhost:1800/documentRename?path=/c&newname=d" --output tmp/output.txt >>tmp/test.log 2>&1
@@ -90,7 +90,8 @@ grep -q 'Internal Server Error' tmp/output.txt && [ -s public/file_small.jpg ] &
 
 echo -ne "Test: /documentRead token"
 curl -k "http://localhost:1800/documentRead?path=/file_small.jpg&size=500000" --output tmp/output.txt >>tmp/test.log 2>&1
-[ -s tmp/output.txt ] && echo " => FAILED" || echo " => OK"
+grep -q 'Forbidden' tmp/output.txt && echo " => OK" || echo " => FAILED"
+
 
 echo -ne "Test: /documentRead /file_small.jpg size=500000"
 curl -H "Authorization: Bearer 1234" -k "http://localhost:1800/documentRead?path=/file_small.jpg&size=500000" --output tmp/output.bin >>tmp/test.log 2>&1
@@ -118,8 +119,8 @@ done
 diff file_small.jpg public/a/noël.bin >>tmp/test.log 2>&1 && echo " => OK" || echo " => FAILED"
 
 echo -ne "Test: /documentReadThumb token"
-curl -k "http://localhost:1800/documentReadThumb?path=/file_small.jpg" --output tmp/output.bin >>tmp/test.log 2>&1
-[ -s tmp/output.bin ] && echo " => FAILED" || echo " => OK"
+curl -k "http://localhost:1800/documentReadThumb?path=/file_small.jpg" --output tmp/output.txt >>tmp/test.log 2>&1
+grep -q 'Forbidden' tmp/output.txt && echo " => OK" || echo " => FAILED"
 
 echo -ne "Test: /documentReadThumb file_small.bin"
 curl -H "Authorization: Bearer 1234" -k "http://localhost:1800/documentReadThumb?path=/file_small.bin" --output tmp/output.txt >>tmp/test.log 2>&1
@@ -128,7 +129,7 @@ grep -q 'Internal Server Error' tmp/output.txt && echo " => OK" || echo " => FAI
 echo -ne "Test: /documentReadThumb file_small.jpg"
 curl -H "Authorization: Bearer 1234" -k "http://localhost:1800/documentReadThumb?path=/file_small.jpg" --output tmp/output.bin >>tmp/test.log 2>&1
 file tmp/output.bin >tmp/output.txt 2>&1
-[ -s tmp/output.bin ] && grep -q 'JPEG' tmp/output.txt && echo " => OK" || echo " => FAILED"
+[ -s tmp/output.bin ] && grep -q 'JPEG\|PNG' tmp/output.txt && echo " => OK" || echo " => FAILED"
 
 echo -ne "Test: /documentRename /a/noël.bin to /d/test.bin"
 curl -H "Authorization: Bearer 1234" -k "http://localhost:1800/documentRename?path=/a/no%C3%ABl.bin&newname=/d/test.bin" --output tmp/output.txt >>tmp/test.log 2>&1
@@ -137,6 +138,10 @@ curl -H "Authorization: Bearer 1234" -k "http://localhost:1800/documentRename?pa
 echo -ne "Test: /documentCreate re-create /d/test.bin"
 curl -H "Authorization: Bearer 1234" -k "http://localhost:1800/documentCreate?path=/d&name=test.bin&isdir=0" --output tmp/output.txt >>tmp/test.log 2>&1
 [ -s public/d/test.bin ]  && echo " => FAILED" || echo " => OK"
+
+echo -ne "Test: /documentCreate re-create /d (folder)"
+curl -H "Authorization: Bearer 1234" -k "http://localhost:1800/documentCreate?path=/&name=d&isdir=1" --output tmp/output.txt >>tmp/test.log 2>&1
+[ -d public/d ] && grep -q '{"id":"/d"}' tmp/output.txt && echo " => OK" || echo " => FAILED"
 
 echo -ne "Test: publish lndp"
 avahi-browse -atpr 2>/dev/null | grep "${HOSTNAME}-" | grep 1800 >>tmp/test.log 2>&1 && echo " => OK" || echo " => FAILED"
