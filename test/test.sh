@@ -134,6 +134,10 @@ echo -ne "Test: /documentRename /a/noël.bin to /d/test.bin"
 curl -H "Authorization: Bearer 1234" -k "http://localhost:1800/documentRename?path=/a/no%C3%ABl.bin&newname=/d/test.bin" --output tmp/output.txt >>tmp/test.log 2>&1
 [ -s public/d/test.bin ]  && echo " => OK" || echo " => FAILED"
 
+echo -ne "Test: /documentCreate re-create /d/test.bin"
+curl -H "Authorization: Bearer 1234" -k "http://localhost:1800/documentCreate?path=/d&name=test.bin&isdir=0" --output tmp/output.txt >>tmp/test.log 2>&1
+[ -s public/d/test.bin ]  && echo " => FAILED" || echo " => OK"
+
 echo -ne "Test: publish lndp"
 avahi-browse -atpr 2>/dev/null | grep "${HOSTNAME}-" | grep 1800 >>tmp/test.log 2>&1 && echo " => OK" || echo " => FAILED"
 

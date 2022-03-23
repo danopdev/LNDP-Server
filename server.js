@@ -230,10 +230,11 @@ restApp.get('/documentCreate', checkAuthenticateToken, (req, res) => {
             if (!err) {
                 if (stat.isDirectory() === isdir) {
                     res.send( {'id': id} );
-                } else {
+                    return;
+                } else if (isdir || stat.isDirectory()) {
                     res.sendStatus(500);
+                    return;
                 }
-                return;
             }
 
             if (isdir) {
