@@ -7,6 +7,7 @@ const sharp = require('sharp');
 const md5lib = require('md5');
 const mimeTypes = require('mime-types');
 const ciao = require("@homebridge/ciao").getResponder();
+const debug = require('debug')('lndp')
 
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -46,12 +47,14 @@ function checkAuthenticateToken(req, res, next) {
             const token = authHeader && authHeader.split(' ')[1];
             if (token == null) {
                 res.sendStatus(204);
+                debug('Auth: KO (204)');
                 return;
             }
 
-            //console.log("Token:", token)
             if (!config.authTokens.includes(token)) {
+                debug("Invalid token:", token)
                 res.sendStatus(403);
+                debug('Auth: KO (403)');
                 return;
             }
         }
@@ -59,6 +62,7 @@ function checkAuthenticateToken(req, res, next) {
         next();
     } catch(e) {
         res.sendStatus(500);
+        debug('Auth: KO (500)');
         console.log(e);
     }
 }
@@ -70,7 +74,7 @@ function getThumbPath( fullPath ) {
     const basePath = process.env.HOME + '/.cache/thumbnails/'
 
     for (const folder of [ 'large', 'normal' ]) {
-        const thumbPath = basePath + 'large/' + md5 + '.png'
+        const thumbPath = basePath + folder + '/' + md5 + '.png'
         if (fs.existsSync(thumbPath)) return thumbPath
     }
 
@@ -149,6 +153,7 @@ function queryInformations( fullPaths ) {
 restApp.get('/queryChildDocuments', checkAuthenticateToken, (req, res) => {
     try {
         const path = req.query.path;
+        debug('[queryChildDocuments]', 'path:', path);
 
         if (!isValidPath(path)) {
             res.sendStatus(500);
@@ -185,6 +190,7 @@ restApp.get('/queryChildDocuments', checkAuthenticateToken, (req, res) => {
 restApp.get('/queryDocument', checkAuthenticateToken, (req, res) => {
     try {
         const path = req.query.path;
+        debug('[queryDocument]', 'path:', path);
 
         if (!isValidPath(path)) {
             res.sendStatus(500);
@@ -217,6 +223,7 @@ restApp.get('/documentCreate', checkAuthenticateToken, (req, res) => {
         const path = req.query.path;
         const name = req.query.name;
         const isdir = parseInt(req.query.isdir);
+        debug('[documentCreate]', 'path:', path, 'name:', name, 'isdir:', isdir);
 
         if (!isValidPath(path) || !isValidFileName(name)) {
             res.sendStatus(500);
@@ -285,6 +292,8 @@ restApp.get('/documentRename', checkAuthenticateToken, (req, res) => {
     try {
         const path = req.query.path;
         const newName = req.query.newname;
+        debug('[documentRename]', 'path:', path, 'newName:', newName);
+
         const newNameIsValidFileName = isValidFileName(newName)
         const newNameIsValidPath = isValidPath(newName)
 
@@ -334,6 +343,7 @@ restApp.get('/documentRead', checkAuthenticateToken, (req, res) => {
         const path = req.query.path;
         const offset = parseInt(req.query.offset || '0');
         const size = parseInt(req.query.size);
+        debug('[documentRead]', 'path:', path, 'offset:', offset, 'size:', size);
 
         if (!isValidPath(path) || offset < 0 || size <= 0) {
             res.sendStatus(500);
@@ -385,6 +395,7 @@ restApp.post('/documentAppend', checkAuthenticateToken, upload.single('block'), 
     try {
         const path = req.query.path;
         const block = req.file;
+        debug('[documentAppend]', 'path:', path, 'blockSize:', block.buffer.length);
 
         if (!isValidPath(path)) {
             res.sendStatus(500);
@@ -430,6 +441,7 @@ restApp.post('/documentAppend', checkAuthenticateToken, upload.single('block'), 
 restApp.get('/documentReadThumb', checkAuthenticateToken, (req, res) => {
     try {
         const path = req.query.path;
+        debug('[documentReadThumb]', 'path:', path);
 
         if (!isValidPath(path)) {
             res.sendStatus(500);
