@@ -63,7 +63,6 @@ function checkAuthenticateToken(req, res, next) {
     } catch(e) {
         res.sendStatus(500);
         debug('Auth: KO (500)');
-        console.log(e);
     }
 }
 
@@ -113,32 +112,29 @@ function queryInformations( fullPaths ) {
             name = id.split('/').pop();
         }
 
-        try {
-            fs.accessSync(fullPath, fs.constants.R_OK);
+        fs.accessSync(fullPath, fs.constants.R_OK);
 
-            var isReadOnly = true;
-            if (!config.readOnly) {
-                try {
-                    fs.accessSync(fullPath, fs.constants.R_OK);
-                    isReadOnly = false;
-                } catch(e) {
-                }
+        var isReadOnly = true;
+        if (!config.readOnly) {
+            try {
+                fs.accessSync(fullPath, fs.constants.R_OK);
+                isReadOnly = false;
+            } catch(e) {
             }
-
-            const thumb = stat.isDirectory() ? false : hasThumb(fullPath, mimeType)
-
-            output.push( {
-                'id': id,
-                'name': name,
-                'isdir' : stat.isDirectory(),
-                'isreadonly': isReadOnly,
-                'size': stat.size,
-                'date': stat.mtimeMs,
-                'type': mimeType,
-                'thumb': thumb
-            } )
-        } catch(e) {
         }
+
+        const thumb = stat.isDirectory() ? false : hasThumb(fullPath, mimeType)
+
+        output.push( {
+            'id': id,
+            'name': name,
+            'isdir' : stat.isDirectory(),
+            'isreadonly': isReadOnly,
+            'size': stat.size,
+            'date': stat.mtimeMs,
+            'type': mimeType,
+            'thumb': thumb
+        } );
     })
 
     return output
@@ -177,7 +173,7 @@ restApp.get('/queryChildDocuments', checkAuthenticateToken, (req, res) => {
         })
     } catch(e) {
         res.sendStatus(500);
-        console.log(e);
+        debug(e);
     }
 })
 
@@ -201,7 +197,7 @@ restApp.get('/queryDocument', checkAuthenticateToken, (req, res) => {
         res.send(queryInformations([fullPath]));
     } catch(e) {
         res.sendStatus(500);
-        console.log(e);
+        debug(e);
     }
 })
 
@@ -272,7 +268,7 @@ restApp.get('/documentCreate', checkAuthenticateToken, (req, res) => {
         })
     } catch(e) {
         res.sendStatus(500);
-        console.log(e);
+        debug(e);
     }
 })
 
@@ -326,7 +322,7 @@ restApp.get('/documentRename', checkAuthenticateToken, (req, res) => {
         })
     } catch(e) {
         res.sendStatus(500);
-        console.log(e);
+        debug(e);
     }
 })
 
@@ -375,7 +371,7 @@ restApp.get('/documentRead', checkAuthenticateToken, (req, res) => {
         })
     } catch(e) {
         res.sendStatus(500);
-        console.log(e);
+        debug(e);
     }
 })
 
@@ -428,7 +424,7 @@ restApp.post('/documentAppend', checkAuthenticateToken, upload.single('block'), 
         })
     } catch(e) {
         res.sendStatus(500);
-        console.log(e);
+        debug(e);
     }
 })
 
@@ -484,7 +480,7 @@ restApp.get('/documentReadThumb', checkAuthenticateToken, (req, res) => {
         })
     } catch(e) {
         res.sendStatus(500);
-        console.log(e);
+        debug(e);
     }
 })
 
