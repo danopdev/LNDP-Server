@@ -32,6 +32,11 @@ echo -ne "Test: /queryDocument /file_small.bin"
 curl -H "Authorization: Bearer 1234" -k "http://localhost:1800/queryDocument?path=/file_small.bin" --output tmp/output.txt 1>tmp/test.log 2>&1
 grep -q '"id":"/file_small.bin","name":"file_small.bin","isdir":false,"isreadonly":false,"size":286' tmp/output.txt && grep -q '"thumb":false' tmp/output.txt && echo " => OK" || echo " => FAILED"
 
+echo -ne "Test: /queryDocument /file_small.bin width md5"
+curl -H "Authorization: Bearer 1234" -k "http://localhost:1800/queryDocument?path=/file_small.bin&md5=1" --output tmp/output.txt 1>tmp/test.log 2>&1
+MD5VALUE=`md5sum file_small.bin | cut -d' ' -f1`
+grep -q '"id":"/file_small.bin","name":"file_small.bin","isdir":false,"isreadonly":false,"size":286' tmp/output.txt && grep -q "\"md5\":\"$MD5VALUE\"" tmp/output.txt && echo " => OK" || echo " => FAILED"
+
 echo -ne "Test: /queryDocument /Noël/file_small.jpg"
 curl -H "Authorization: Bearer 1234" -k "http://localhost:1800/queryDocument?path=/No%C3%ABl/file_small.jpg" --output tmp/output.txt 1>tmp/test.log 2>&1
 grep -q '"id":"/Noël/file_small.jpg","name":"file_small.jpg","isdir":false' tmp/output.txt && grep -q '"size":152157' tmp/output.txt && grep -q '"type":"image/jpeg","thumb":true' tmp/output.txt && echo " => OK" || echo " => FAILED"

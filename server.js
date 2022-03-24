@@ -108,7 +108,7 @@ function hasThumb( fullPath, mimeType ) {
 }
 
 
-function queryInformations( fullPaths ) {
+function queryInformations( fullPaths, addMd5 ) {
     const lenRoot = lndpRoot.length
     var output = []
 
@@ -147,7 +147,7 @@ function queryInformations( fullPaths ) {
 
         const thumb = stat.isDirectory() ? false : hasThumb(fullPath, mimeType)
 
-        output.push( {
+        const entry = {
             'id': id,
             'name': name,
             'isdir' : stat.isDirectory(),
@@ -156,7 +156,23 @@ function queryInformations( fullPaths ) {
             'date': stat.mtimeMs,
             'type': mimeType,
             'thumb': thumb
-        } )
+        }
+
+        if (addMd5) {
+            let md5 = 0
+
+            if (!stat.isDirectory()) {
+                try {
+                    const fileData = fs.readFileSync(fullPath)
+                    md5 = md5lib( fileData )
+                } catch (e) {
+                }
+            }
+
+            entry['md5'] = md5
+        }
+
+        output.push( entry )
     })
 
     return output
@@ -202,7 +218,7 @@ restApp.get('/queryChildDocuments', checkAuthenticateToken, parsePathParam, (req
 restApp.get('/queryDocument', checkAuthenticateToken, parsePathParam, (req, res) => {
     try {
         debug('[queryDocument]')
-        res.send(queryInformations([req.params.fullPath]))
+        res.send(queryInformations([req.params.fullPath], req.query.md5))
     } catch(e) {
         res.sendStatus(500)
         debug(e)
