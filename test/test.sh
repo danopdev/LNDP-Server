@@ -97,7 +97,6 @@ echo -ne "Test: /documentRead token"
 curl -k "http://localhost:1800/documentRead?path=/file_small.jpg&size=500000" --output tmp/output.txt >>tmp/test.log 2>&1
 grep -q 'Forbidden' tmp/output.txt && echo " => OK" || echo " => FAILED"
 
-
 echo -ne "Test: /documentRead /file_small.jpg size=500000"
 curl -H "Authorization: Bearer 1234" -k "http://localhost:1800/documentRead?path=/file_small.jpg&size=500000" --output tmp/output.bin >>tmp/test.log 2>&1
 diff public/file_small.jpg tmp/output.bin >>tmp/test.log 2>&1 && echo " => OK" || echo " => FAILED"
