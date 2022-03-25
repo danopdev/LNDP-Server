@@ -383,6 +383,7 @@ app.post('/documentAppend', checkAuthenticateToken, parsePathParam, upload.singl
         const fullPath = req.params.fullPath
         const fd = await fs.open(fullPath, "a")
         await fd.write( block.buffer)
+        await fd.close()
         res.send('')
     } catch(e) {
         res.sendStatus(500)
