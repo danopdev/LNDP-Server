@@ -1,6 +1,6 @@
 const express = require('express')
 const multer  = require('multer')
-const fs = require('fs')
+const { promises: fs } = require("fs")
 const os = require('os')
 const fsPath = require('path')
 const sharp = require('sharp')
@@ -11,7 +11,7 @@ const debug = require('debug')('lndp')
 
 
 const upload = multer({ storage: multer.memoryStorage() })
-const restApp = express()
+const app = express()
 
 
 function isValidFileName(name) {
@@ -39,6 +39,15 @@ function joinPath( left, right ) {
 }
 
 
+async function fileExists(fullPath) {
+    try {
+        await fs.stat(fullPath)
+        return true
+    } catch(e) {
+        return false
+    }
+}
+
 
 function checkAuthenticateToken(req, res, next) {
     try {
@@ -46,23 +55,20 @@ function checkAuthenticateToken(req, res, next) {
             const authHeader = req.headers['authorization']
             const token = authHeader && authHeader.split(' ')[1]
             if (token == null) {
-                res.sendStatus(403)
                 debug('Auth: KO (403)')
-                return
+                return res.sendStatus(403)
             }
 
             if (!config.authTokens.includes(token)) {
                 debug("Invalid token:", token)
-                res.sendStatus(403)
-                debug('Auth: KO (403)')
-                return
+                return res.sendStatus(403)
             }
         }
 
         next()
     } catch(e) {
-        res.sendStatus(500)
         debug('Auth: KO (500)')
+        res.sendStatus(500)
     }
 }
 
@@ -72,9 +78,8 @@ function parsePathParam(req, res, next) {
         const path = req.query.path
 
         if (!isValidPath(path)) {
-            res.sendStatus(500)
             debug('[checkPathParam]', 'Invalid path:', path)
-            return
+            return res.sendStatus(500)
         }
 
         req.params.path = path
@@ -89,31 +94,31 @@ function parsePathParam(req, res, next) {
 }
 
 
-function getThumbPath( fullPath ) {
+async function getThumbPath( fullPath ) {
     const uriFullPath = "file://" + fullPath
     const md5 = md5lib(uriFullPath)
     const basePath = process.env.HOME + '/.cache/thumbnails/'
 
     for (const folder of [ 'large', 'normal' ]) {
         const thumbPath = basePath + folder + '/' + md5 + '.png'
-        if (fs.existsSync(thumbPath)) return thumbPath
+        if (await fileExists(thumbPath)) return thumbPath
     }
 
     return null
 }
 
 
-function hasThumb( fullPath, mimeType ) {
-    return mimeType.startsWith('image/') || null !== getThumbPath(fullPath)
+async function hasThumb( fullPath, mimeType ) {
+    return mimeType.startsWith('image/') || null !== await getThumbPath(fullPath)
 }
 
 
-function queryInformations( fullPaths, addMd5 ) {
+async function queryInformations( fullPaths, addMd5 ) {
     const lenRoot = lndpRoot.length
     var output = []
 
-    fullPaths.forEach((fullPath, i) => {
-        const stat = fs.statSync(fullPath)
+    for(const fullPath of fullPaths) {
+        const stat = await fs.stat(fullPath)
         var mimeType = 'application/octet-stream'
 
         if (stat.isDirectory()) {
@@ -134,18 +139,17 @@ function queryInformations( fullPaths, addMd5 ) {
             name = id.split('/').pop()
         }
 
-        fs.accessSync(fullPath, fs.constants.R_OK)
-
         var isReadOnly = true
         if (!config.readOnly) {
             try {
-                fs.accessSync(fullPath, fs.constants.R_OK)
+                await fs.access(fullPath, fs.W_OK)
                 isReadOnly = false
             } catch(e) {
+                debug(e)
             }
         }
 
-        const thumb = stat.isDirectory() ? false : hasThumb(fullPath, mimeType)
+        const thumb = stat.isDirectory() ? false : await hasThumb(fullPath, mimeType)
 
         const entry = {
             'id': id,
@@ -163,7 +167,7 @@ function queryInformations( fullPaths, addMd5 ) {
 
             if (!stat.isDirectory()) {
                 try {
-                    const fileData = fs.readFileSync(fullPath)
+                    const fileData = await fs.readFile(fullPath)
                     md5 = md5lib( fileData )
                 } catch (e) {
                 }
@@ -173,7 +177,7 @@ function queryInformations( fullPaths, addMd5 ) {
         }
 
         output.push( entry )
-    })
+    }
 
     return output
 }
@@ -184,25 +188,20 @@ function queryInformations( fullPaths, addMd5 ) {
  * API: GET /queryChildDocuments
  *   path: must start with '/' and must not contains '..'
  */
-restApp.get('/queryChildDocuments', checkAuthenticateToken, parsePathParam, (req, res) => {
+app.get('/queryChildDocuments', checkAuthenticateToken, parsePathParam, async (req, res) => {
     try {
         debug('[queryChildDocuments]')
 
         const fullPath = req.params.fullPath
-        const stat = fs.statSync(fullPath)
+        const stat = await fs.stat(fullPath)
 
         if (!stat.isDirectory()) {
-            res.sendStatus(204)
-            return
+            return res.sendStatus(204)
         }
 
-        fs.readdir(fullPath, (err, files) => {
-            var items = []
-            files.forEach(file => {
-                items.push( joinPath(fullPath, file) )
-            })
-            res.send(queryInformations(items))
-        })
+        const content = await fs.readdir(fullPath)
+        const items = content.map(item => joinPath(fullPath, item))
+        res.send(await queryInformations(items))
     } catch(e) {
         res.sendStatus(500)
         debug(e)
@@ -215,13 +214,13 @@ restApp.get('/queryChildDocuments', checkAuthenticateToken, parsePathParam, (req
  * API: GET /queryDocument
  *   path: must start with '/' and must not contains '..'
  */
-restApp.get('/queryDocument', checkAuthenticateToken, parsePathParam, (req, res) => {
+app.get('/queryDocument', checkAuthenticateToken, parsePathParam, async (req, res) => {
     try {
         debug('[queryDocument]')
-        res.send(queryInformations([req.params.fullPath], req.query.md5))
+        res.send(await queryInformations([req.params.fullPath], req.query.md5))
     } catch(e) {
-        res.sendStatus(500)
         debug(e)
+        res.sendStatus(500)
     }
 })
 
@@ -233,10 +232,9 @@ restApp.get('/queryDocument', checkAuthenticateToken, parsePathParam, (req, res)
  *   name: new file or directory
  *   isdir: 0 = new file, else new directory
  */
-restApp.get('/documentCreate', checkAuthenticateToken, parsePathParam, (req, res) => {
+app.get('/documentCreate', checkAuthenticateToken, parsePathParam, async (req, res) => {
     if (config.readOnly) {
-        res.sendStatus(500)
-        return
+        return res.sendStatus(500)
     }
 
     try {
@@ -245,51 +243,33 @@ restApp.get('/documentCreate', checkAuthenticateToken, parsePathParam, (req, res
         debug('[documentCreate]', 'name:', name, 'isdir:', isdir)
 
         if (!isValidFileName(name)) {
-            res.sendStatus(500)
-            return
+            return res.sendStatus(500)
         }
 
         const id = joinPath( req.params.path, name )
         const fullPath = joinPath(lndpRoot, id)
 
-        fs.stat(fullPath, (err, stat) => {
-            if (!err) {
-                debug('[documentCreate]', 'Already exists - directory', stat.isDirectory())
-                if (stat.isDirectory() && isdir) {
-                    res.send( {'id': id} )
-                    return
-                } else if (isdir || stat.isDirectory()) {
-                    res.sendStatus(500)
-                    return
-                }
+        try {
+            const stat = await fs.stat(fullPath)
+            debug('[documentCreate]', 'Already exists - directory', stat.isDirectory())
+            if (stat.isDirectory() && isdir) {
+                return res.send( {'id': id} )
+            } else if (isdir || stat.isDirectory()) {
+                return res.sendStatus(500)
             }
+        } catch(e) {
+        }
 
-            if (isdir) {
-                fs.mkdir(fullPath, { recursive: true }, (err) => {
-                    if (err) {
-                        res.sendStatus(500)
-                    } else {
-                        res.send( {'id': id} )
-                    }
-                })
-            } else {
-                const dirName = fsPath.dirname(fullPath)
-                fs.mkdir(dirName, { recursive: true }, (err) => {
-                    if (err) {
-                        res.sendStatus(500)
-                    } else {
-                        fs.open(fullPath, 'w', (err, fd) => {
-                            if (err) {
-                                res.sendStatus(500)
-                            } else {
-                                fs.close(fd, () => {})
-                                res.send( {'id': id} )
-                            }
-                        })
-                    }
-                })
-            }
-        })
+        if (isdir) {
+            await fs.mkdir(fullPath, { recursive: true })
+            res.send( {'id': id} )
+        } else {
+            const dirPath = fsPath.dirname(fullPath)
+            await fs.mkdir(dirPath, { recursive: true })
+            const fd = await fs.open(fullPath, 'w')
+            await fd.close()
+            res.send( {'id': id} )
+        }
     } catch(e) {
         res.sendStatus(500)
         debug(e)
@@ -303,10 +283,9 @@ restApp.get('/documentCreate', checkAuthenticateToken, parsePathParam, (req, res
  *   path: must start with '/' and must not contains '..'
  *   newname: new file or directory name
  */
-restApp.get('/documentRename', checkAuthenticateToken, parsePathParam, (req, res) => {
+app.get('/documentRename', checkAuthenticateToken, parsePathParam, async (req, res) => {
     if (config.readOnly) {
-        res.sendStatus(500)
-        return
+        return res.sendStatus(500)
     }
 
     try {
@@ -317,34 +296,26 @@ restApp.get('/documentRename', checkAuthenticateToken, parsePathParam, (req, res
         const newNameIsValidPath = isValidPath(newName)
 
         if (!newNameIsValidFileName && !newNameIsValidPath) {
-            res.sendStatus(500)
-            return
+            return res.sendStatus(500)
         }
 
         const path = req.params.path
         const fullPath = req.params.fullPath
 
-        fs.stat(fullPath, (err, stat) => {
-            if (err) {
-                res.sendStatus(500)
-                return
-            }
+        const exists = await fileExists(fullPath)
 
+        if (exists) {
             const newPath = newNameIsValidPath ? newName : joinPath(fsPath.dirname(path), newName)
             const fullNewPath = joinPath(lndpRoot, newPath)
 
-            if (fullPath === fullNewPath) {
-                res.send({'id': path})
-            } else {
-                fs.rename(fullPath, fullNewPath, (err) => {
-                    if (err) {
-                        res.sendStatus(500)
-                    } else {
-                        res.send({'id': newPath})
-                    }
-                })
+            if (fullPath !== fullNewPath) {
+                await fs.rename(fullPath, fullNewPath)
             }
-        })
+
+            res.send({'id': newPath})
+        } else {
+            res.sendStatus(500)
+        }
     } catch(e) {
         res.sendStatus(500)
         debug(e)
@@ -359,43 +330,37 @@ restApp.get('/documentRename', checkAuthenticateToken, parsePathParam, (req, res
  *   offset: optional (>= 0)
  *   size: maximum read block size
  */
-restApp.get('/documentRead', checkAuthenticateToken, parsePathParam, (req, res) => {
+app.get('/documentRead', checkAuthenticateToken, parsePathParam, async (req, res) => {
     try {
         const offset = parseInt(req.query.offset || '0')
         const size = parseInt(req.query.size)
         debug('[documentRead]', offset, 'size:', size)
 
         if (offset < 0 || size <= 0) {
-            res.sendStatus(500)
-            return
+            return res.sendStatus(500)
         }
 
         const fullPath = req.params.fullPath
+        const stat = await fs.stat(fullPath)
 
-        fs.stat( fullPath, (err, stat) => {
-            if (err || !stat.isFile()) {
-                res.sendStatus(204)
-            } else {
-                fs.open(fullPath, 'r', (err, fd) => {
-                    if (err) {
-                        res.sendStatus(204)
-                    } else {
-                        var buffer = Buffer.alloc(size)
+        if (!stat.isFile()) {
+            return res.sendStatus(204)
+        }
 
-                        fs.read( fd, buffer, 0, size, offset, (err, readSize) => {
-                            fs.close(fd, () => {})
-                            if (readSize >= 0) {
-                                res.setHeader('Content-type', 'application/octet-stream')
-                                res.send(buffer.slice(0, readSize))
-                            }
-                        })
-                    }
-                })
-            }
-        })
-    } catch(e) {
+        const buffer = Buffer.alloc(size)
+        const fd = await fs.open(fullPath, 'r')
+        const readData = await fd.read( buffer, 0, size, offset)
+        await fd.close()
+
+        if (readData.bytesRead >= 0) {
+            res.setHeader('Content-type', 'application/octet-stream')
+            return res.send(buffer.slice(0, readData.bytesRead))
+        }
+
         res.sendStatus(500)
+    } catch(e) {
         debug(e)
+        res.sendStatus(500)
     }
 })
 
@@ -406,10 +371,9 @@ restApp.get('/documentRead', checkAuthenticateToken, parsePathParam, (req, res) 
  *   path: must start with '/' and must not contains '..'
  *   block: file data block
  */
-restApp.post('/documentAppend', checkAuthenticateToken, parsePathParam, upload.single('block'), (req, res) => {
+app.post('/documentAppend', checkAuthenticateToken, parsePathParam, upload.single('block'), async (req, res) => {
     if (config.readOnly) {
-        res.sendStatus(500)
-        return
+        return res.sendStatus(500)
     }
 
     try {
@@ -417,29 +381,9 @@ restApp.post('/documentAppend', checkAuthenticateToken, parsePathParam, upload.s
         debug('[documentAppend]', 'blockSize:', block.buffer.length)
 
         const fullPath = req.params.fullPath
-
-        fs.stat(fullPath, (err, stat) => {
-            if (err || stat.isDirectory()) {
-                res.sendStatus(500)
-                return
-            }
-
-            fs.open(fullPath, "a", (err, fd) => {
-                if (err) {
-                    res.sendStatus(500)
-                    return
-                }
-
-                fs.write( fd, block.buffer, (err) => {
-                    fs.close(fd, () => {})
-                    if (err) {
-                        res.sendStatus(500)
-                    } else {
-                        res.send('')
-                    }
-                })
-            })
-        })
+        const fd = await fs.open(fullPath, "a")
+        await fd.write( block.buffer)
+        res.send('')
     } catch(e) {
         res.sendStatus(500)
         debug(e)
@@ -452,34 +396,29 @@ restApp.post('/documentAppend', checkAuthenticateToken, parsePathParam, upload.s
  * API: GET /documentReadThumb
  *   path: must start with '/' and must not contains '..'
  */
-restApp.get('/documentReadThumb', checkAuthenticateToken, parsePathParam, (req, res) => {
+app.get('/documentReadThumb', checkAuthenticateToken, parsePathParam, async (req, res) => {
     try {
         debug('[documentReadThumb]')
 
         const fullPath = req.params.fullPath
+        const stat = await fs.stat(fullPath)
 
-        fs.stat(fullPath, (err, stat) => {
-            if (err || stat.isDirectory()) {
-                res.sendStatus(500)
-                return
-            }
+        if (stat.isDirectory()) {
+            return res.sendStatus(500)
+        }
 
-            const thumbPath = getThumbPath(fullPath)
-            const readThumbPath = (null != thumbPath) ? thumbPath : fullPath
-            sharp(readThumbPath)
-                .resize(config.thumb.size)
-                .rotate()
-                .jpeg({ quality: config.thumb.quality })
-                .toBuffer()
-                .then( buffer => {
-                    res.setHeader('Content-type', 'image/jpeg')
-                    res.send(buffer)
-                })
-                .catch( err => {
-                    res.sendStatus(500)
-                })
-        })
-    } catch(e) {
+        const thumbPath = await getThumbPath(fullPath)
+        const readThumbPath = (null != thumbPath) ? thumbPath : fullPath
+
+        const thumbData = await sharp(readThumbPath)
+            .resize(config.thumb.size)
+            .rotate()
+            .jpeg({ quality: config.thumb.quality })
+            .toBuffer()
+
+        res.setHeader('Content-type', 'image/jpeg')
+        res.send(thumbData)
+} catch(e) {
         res.sendStatus(500)
         debug(e)
     }
@@ -518,4 +457,4 @@ process.on('SIGINT', function() {
     process.exit()
 })
 
-restApp.listen(config.servicePort)
+app.listen(config.servicePort)
