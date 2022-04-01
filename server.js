@@ -186,7 +186,7 @@ async function queryInformations( fullPaths, addMd5 ) {
 
 /**
  * API: GET /queryChildDocuments
- *   path: must start with '/' and must not contains '..'
+ * @param path
  */
 app.get('/queryChildDocuments', checkAuthenticateToken, parsePathParam, async (req, res) => {
     try {
@@ -212,7 +212,7 @@ app.get('/queryChildDocuments', checkAuthenticateToken, parsePathParam, async (r
 
 /**
  * API: GET /queryDocument
- *   path: must start with '/' and must not contains '..'
+ * @param path
  */
 app.get('/queryDocument', checkAuthenticateToken, parsePathParam, async (req, res) => {
     try {
@@ -228,9 +228,9 @@ app.get('/queryDocument', checkAuthenticateToken, parsePathParam, async (req, re
 
 /**
  * API: GET /documentCreate
- *   path: folder (must start with '/' and must not contains '..')
- *   name: new file or directory
- *   isdir: 0 = new file, else new directory
+ * @param path
+ * @param name: new file or directory. If ommited or empty it means is already part of the path
+ * @param isdir: 1 = new directory, else (or omitted) new file
  */
 app.get('/documentCreate', checkAuthenticateToken, parsePathParam, async (req, res) => {
     if (config.readOnly) {
@@ -242,11 +242,11 @@ app.get('/documentCreate', checkAuthenticateToken, parsePathParam, async (req, r
         const isdir = 1 === parseInt(req.query.isdir)
         debug('[documentCreate]', 'name:', name, 'isdir:', isdir)
 
-        if (!isValidFileName(name)) {
+        if (name && !isValidFileName(name)) {
             return res.sendStatus(500)
         }
 
-        const id = joinPath( req.params.path, name )
+        const id = name ? joinPath( req.params.path, name ) : req.params.path
         const fullPath = joinPath(lndpRoot, id)
 
         try {
@@ -280,8 +280,8 @@ app.get('/documentCreate', checkAuthenticateToken, parsePathParam, async (req, r
 
 /**
  * API: GET /documentRename
- *   path: must start with '/' and must not contains '..'
- *   newname: new file or directory name
+ * @param path
+ * @param newname: new file or directory name (or full path to move it into another folder)
  */
 app.get('/documentRename', checkAuthenticateToken, parsePathParam, async (req, res) => {
     if (config.readOnly) {
@@ -326,9 +326,9 @@ app.get('/documentRename', checkAuthenticateToken, parsePathParam, async (req, r
 
 /**
  * API: GET /documentRead
- *   path: must start with '/' and must not contains '..'
- *   offset: optional (>= 0)
- *   size: maximum read block size
+ * @param path
+ * @param offset: optional (default 0, must be >= 0)
+ * @param size: maximum read block size (must be > 0)
  */
 app.get('/documentRead', checkAuthenticateToken, parsePathParam, async (req, res) => {
     try {
@@ -368,8 +368,8 @@ app.get('/documentRead', checkAuthenticateToken, parsePathParam, async (req, res
 
 /**
  * API: POST /documentAppend
- *   path: must start with '/' and must not contains '..'
- *   block: file data block
+ * @param path
+ * @param block: file data block
  */
 app.post('/documentAppend', checkAuthenticateToken, parsePathParam, upload.single('block'), async (req, res) => {
     if (config.readOnly) {
@@ -395,7 +395,7 @@ app.post('/documentAppend', checkAuthenticateToken, parsePathParam, upload.singl
 
 /**
  * API: GET /documentReadThumb
- *   path: must start with '/' and must not contains '..'
+ * @param path
  */
 app.get('/documentReadThumb', checkAuthenticateToken, parsePathParam, async (req, res) => {
     try {
