@@ -3,9 +3,9 @@
 I needed a simple and fast mechanism to copy files between my smartphone and my laptop.
 I tried to use FTP or SAMBA but there was always something that didn't work or it was too slow.
 
-The comunication is done over HTTP protocol and on Android side it use Document Provider API.
+The comunication is done over HTTP and on Android side it use Document Provider API.
 
-This is the server (linux) part. Check LNDP-Android (the smartphone application) for more details.
+This is the server (linux) part. Check [LNDP-Android](https://github.com/danopdev/LNDP-Android) (the smartphone application) for more details.
 
 The server expose it's presence using Bonjour protocol.
 
@@ -49,3 +49,6 @@ Debug mode:
 DEBUG=lndp ./start.sh
 ```
 
+## TODO ##
+
+Try to use HTTPS.
