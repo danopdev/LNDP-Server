@@ -51,4 +51,5 @@ DEBUG=lndp ./start.sh
 
 ## TODO ##
 
-Try to use HTTPS.
+* Try to use HTTPS.
+* Try to make it compatible with Windows
