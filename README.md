@@ -30,11 +30,11 @@ You can keep all default values except the 'root' path.
 * servicePort: specity the port it serves files
 * authTokens:
   * null: it will allow communication with all devices
-  * array if strings of allowed tokens (ex: ["1234]) 
+  * array if strings of allowed tokens (ex: ["1234"])
 * readOnly: allow read-write or read-only access to PC files
 * root: the folder the will be exposed
 * thumb: options for the thumbnails generated on the fly (image only for now)
-  * size: maximum width / height 
+  * size: maximum width / height
   * quality: jpeg quality
 
 ## Run the server ##
