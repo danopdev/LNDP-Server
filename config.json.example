@@ -1,6 +1,6 @@
 {
     "servicePort": 1972,
-    "authTokens": [ "1234" ],
+    "authTokens": null,
     "readOnly": false,
     "root": "~/public",
     "thumb": {
