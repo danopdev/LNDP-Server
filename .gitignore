@@ -110,3 +110,6 @@ config.json
 test/public
 test/backup
 test/tmp
+
+server.cert
+server.key

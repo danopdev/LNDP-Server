@@ -6,5 +6,8 @@
     "thumb": {
         "size": 300,
         "quality": 75
+    },
+    "ssl" : {
+        "enabled" : false
     }
 }

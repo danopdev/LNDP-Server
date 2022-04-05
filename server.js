@@ -437,25 +437,50 @@ function toAbsPath(path) {
 }
 
 
+async function startServer() {
+    const serviceOptions = {
+        name: serverName,
+        type: "lndp",
+        port: config.servicePort
+    }
+
+    if (enableSSL) {
+        serviceOptions.txt = {
+            ssl: true
+        }
+    }
+
+    ciao.createService(
+        serviceOptions
+    ).advertise()
+
+    process.on('SIGINT', function() {
+        console.log("Caught interrupt signal")
+        ciao.destroy()
+        process.exit()
+    })
+
+    if (enableSSL) {
+        const https = require('https');
+        const keyData = await fs.readFile(config.ssl.keyFile)
+        const certData = await fs.readFile(config.ssl.certFile)
+        https.createServer( {
+            key: keyData,
+            cert: certData
+        }, app ).listen(config.servicePort)
+    } else {
+        app.listen(config.servicePort)
+    }
+}
 
 const config = require(process.argv[2] || "./config.json")
 const lndpRoot = toAbsPath(config.root)
 const serverName = os.hostname() + '-' + os.type()
+const enableSSL = (config.ssl != null && config.ssl.enabled && config.ssl.keyFile != null && config.ssl.certFile != null) ? true : false
 
 console.log("Name:", serverName)
 console.log("Port:", config.servicePort)
 console.log("Path:", lndpRoot)
+console.log("SSL:", enableSSL)
 
-ciao.createService({
-    name: serverName,
-    type: "lndp",
-    port: config.servicePort
-}).advertise()
-
-process.on('SIGINT', function() {
-    console.log("Caught interrupt signal")
-    ciao.destroy()
-    process.exit()
-})
-
-app.listen(config.servicePort)
+startServer()
