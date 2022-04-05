@@ -22,6 +22,8 @@ cd LNDP-Server
 npm install
 ```
 
+> **_NOTE:_** you can safely remove the test folder (it contains non-regression tests scripts and data files)
+
 ## Configuration ##
 
 Copy 'config.json.example' to 'config.json' and edit it.
@@ -54,7 +56,7 @@ To generate a self signed certicate you can use the following command:
 ```
 openssl req -nodes -new -x509 -keyout server.key -out server.cert
 ```
-NOTE: don't put a password.
+> **_NOTE:_** don't put a password.
 
 ## Run the server ##
 
