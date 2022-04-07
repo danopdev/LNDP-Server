@@ -11,6 +11,8 @@ The server expose it's presence using Bonjour protocol.
 
 ## Install ##
 
+> **_NOTE:_** Tested with node 14 & 16.
+
 Clone this repository:
 ```
 git clone git@github.com:danopdev/LNDP-Server.git
