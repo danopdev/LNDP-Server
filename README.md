@@ -39,7 +39,7 @@ You can keep all default values except the 'root' path.
   * null: it will allow communication with all devices
   * array if strings of allowed tokens (ex: ["1234"])
 
-I you want to see the token of you device you can run the sever in debug mode and check "Invalid token" traces:
+If you want to see the token of you device you can run the sever in debug mode and check "Invalid token" traces:
 
 ```
 DEBUG=lndp ./start.sh
