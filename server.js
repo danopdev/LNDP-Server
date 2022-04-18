@@ -429,7 +429,7 @@ app.get('/documentReadThumb', checkAuthenticateToken, parsePathParam, async (req
 
 function toAbsPath(path) {
     if (path.startsWith('~')) {
-        path = joinPath( os.homedir, path.substring(1) )
+        path = joinPath( os.homedir(), path.substring(1) )
     } else if (path.startsWith('.')) {
         path = joinPath( process.cwd(), path )
     }
