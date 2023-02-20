@@ -8,7 +8,7 @@ const md5lib = require('md5')
 const mimeTypes = require('mime-types')
 const ciao = require("@homebridge/ciao").getResponder()
 const debug = require('debug')('lndp')
-
+const md5File = require('md5-file')
 
 const upload = multer({ storage: multer.memoryStorage() })
 const app = express()
@@ -128,6 +128,7 @@ async function queryInformations( fullPaths, addMd5 ) {
                 var mimeType_ = mimeTypes.lookup(fullPath)
                 if (mimeType_ !== false) mimeType = mimeType_
             } catch(e) {
+                debug(e)
             }
         }
 
@@ -167,9 +168,9 @@ async function queryInformations( fullPaths, addMd5 ) {
 
             if (!stat.isDirectory()) {
                 try {
-                    const fileData = await fs.readFile(fullPath)
-                    md5 = md5lib( fileData )
+                    md5 = await md5File( fullPath )
                 } catch (e) {
+                    debug(e)
                 }
             }
 
